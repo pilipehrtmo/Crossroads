@@ -56,6 +56,7 @@ class User(SQLModel, table=True):
     awards: str = ""          # one per line: awards and honours (public)
     password_hash: str = ""   # salted scrypt hash; "" for accounts made before passwords (they set one through a link)
     email_verified: bool = False
+    checklist_from: Optional[NaiveDatetime] = None   # practice reset: the Getting started list only counts projects and positions posted after this
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)

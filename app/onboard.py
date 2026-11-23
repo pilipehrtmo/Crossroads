@@ -11,7 +11,9 @@ from .main import templates
 
 def items_for(s, u):
     applied = s.exec(select(Application.id).where(Application.user_id == u.id, Application.status != "withdrawn")).first() is not None
-    posted = s.exec(select(Project.id).where(Project.owner_id == u.id)).first() is not None
+    since = getattr(u, "checklist_from", None)   # practice reset: older projects and positions stay up but don't tick the list
+    pq = select(Project.id).where(Project.owner_id == u.id)
+    posted = s.exec(pq.where(Project.created > since) if since else pq).first() is not None
     joined = s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
                     .where(Application.status == "accepted", (Application.user_id == u.id) | (Project.owner_id == u.id))).first() is not None
     if u.role != "faculty":
@@ -23,6 +25,7 @@ def items_for(s, u):
         ]
     from .models import Opening, OpeningApp
     ops = s.exec(select(Opening.id).where(Opening.owner_id == u.id)).all()
+    new_ops = s.exec(select(Opening.id).where(Opening.owner_id == u.id, Opening.created > since)).all() if since else ops
     reviewed = s.exec(select(OpeningApp.id).where(OpeningApp.opening_id.in_(ops or [-1]), OpeningApp.status != "pending")).first() is not None or \
         s.exec(select(Application.id).join(Role, Role.id == Application.role_id).join(Project, Project.id == Role.project_id)
                .where(Project.owner_id == u.id, Application.status.in_(["accepted", "rejected"]))).first() is not None
@@ -32,7 +35,7 @@ def items_for(s, u):
         dict(key="verified", label="Get verified", desc="Your official NTHU page is checked, or an admin reviews your information.", done=u.is_faculty, href="/verification", tour="prof:p_info"),
         dict(key="research", label="Fill in your research profile", desc="Research interests, lab and links, so students can find you.", done=bool((u.research or "").strip()), href="/profile#research", tour="prof:p_research"),
         dict(key="project", label="Post a project", desc="A lab or research project with the seats you want students for.", done=posted, href="/projects/new", tour="prof:p_proj"),
-        dict(key="opening", label="Open a research position", desc="Students apply with a note; you choose who joins.", done=bool(ops), href="/openings/new", tour="prof:p_open", locked=locked),
+        dict(key="opening", label="Open a research position", desc="Students apply with a note; you choose who joins.", done=bool(new_ops), href="/openings/new", tour="prof:p_open", locked=locked),
         dict(key="review", label="Review student applications", desc="Accept or decline from your dashboard.", done=reviewed, href="/advisor#positions", tour="prof:p_review", locked=locked),
     ]
 
