@@ -68,6 +68,9 @@
       wrap.appendChild(b);
     });
   }
+  // keep focus where it is when the eye is pressed: leaving another field (e.g. the email) can show a hint that moves the
+  // password field down between press and release, and then the click lands beside the eye and nothing happens
+  document.addEventListener("mousedown", e => { if (e.button === 0 && e.target.closest && e.target.closest(".pw-eye")) e.preventDefault(); });
   document.addEventListener("click", e => {
     const b = e.target.closest(".pw-eye"); if (!b) return;
     const inp = b.parentNode.querySelector("input"); if (!inp) return;
