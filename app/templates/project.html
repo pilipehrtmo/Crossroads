@@ -6,6 +6,7 @@
 {% elif notice == "facultyonly" %}<p class="box" role="status">Only verified NTHU professors can apply for an advisor seat.</p>
 {% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the seat is open.</p>
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>
+{% elif notice == "seatfull" %}<p class="err" role="alert">This seat was filled a moment ago, so that application was not accepted.</p>
 {% elif notice == "removed" %}<p class="box" role="status">Removed from the seat. The seat is open again.</p>
 {% elif notice == "completed" %}<p class="box ok" role="status">Marked completed. Your teammates are asked to confirm their part.</p>
 {% elif notice == "reopened" %}<p class="box" role="status">Completion undone. The project is back to “Not recruiting”.</p>

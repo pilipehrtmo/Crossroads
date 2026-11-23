@@ -245,18 +245,45 @@
   }
   const end = () => { write(null); clear(true); };
 
+  // A sign-up form that came back with an error, or was refreshed, can have fields emptied that earlier steps filled.
+  // The tour goes back to the field the error is about, or to the first empty one, so it never points at a button
+  // that can't work yet. Only right after a page load: a person who pressed "Skip this step" isn't pulled back.
+  function signupGap(S, i) {
+    if (!document.querySelector("#lf") || !S[i] || !/signup/.test(S[i].path)) return -1;
+    const err = document.querySelector(".err[data-field]"), want = err ? err.dataset.field : "";
+    let best = -1;
+    for (let j = 0; j < i; j++) {
+      const s = S[j]; if (!new RegExp(s.path).test(location.pathname) || s.via) continue;
+      const t = s.sel ? find(s.sel) : null; if (!t) continue;
+      const box = s.act === "check" ? t.querySelector("input[type=checkbox]") : null;
+      const empty = (s.act === "input" && !t.value.trim()) || (box && !box.checked);
+      if ((want && s.sel === want) || empty) { best = j; break; }
+    }
+    return best;
+  }
+  let fresh = false;   // true for the first show() after a page load
+
   async function show() {
-    clear(false); const g = gen;
+    clear(false); const g = gen, first = fresh; fresh = false;
     D = D || data(); let st = read(); if (!D || !st || !D.tours[st.t]) return clear(true);
-    if (st.uid && D.uid && st.uid !== D.uid) return end();   // another person logged in on this browser
-    if (!st.uid && D.uid) write({ ...st, uid: D.uid });
+    if (st.uid && st.uid !== D.uid) return end();   // logged out, or another person logged in on this browser: never show their tour
+    if (!st.uid && D.uid) { st = { ...st, uid: D.uid }; write(st); }
     const S = steps(st), L = D.labels;
+    if (D.uid && S[st.i] && S[st.i].pre) {   // logged in (maybe after confirming on another device) but still on a sign-up step: go on to the first logged-in step
+      const j = S.findIndex(x => !x.pre);
+      if (j > 0) { st = { ...st, i: j, floor: j, via: null }; write(st); if (!fits(S[j], st) && S[j].go) { location.href = S[j].go; return; } }
+    }
     let i = pick(st);
-    if (i < 0) i = await waitFor(() => { const k = pick(read() || st); return k >= 0 ? k : null; }, 1500, g) ?? -1;   // content that loads late
-    if (g !== gen) return;
-    if (i < 0) { if (spot) spot.classList.remove("on"); hideCursor(); return resume(st, S, L); }
+    if (i < 0) {   // no step on this page: offer the way back right away, but still take a step whose content loads late
+      if (spot) spot.classList.remove("on"); hideCursor(); resume(st, S, L);
+      i = await waitFor(() => { const k = pick(read() || st); return k >= 0 ? k : null; }, 1500, g) ?? -1;
+      if (g !== gen || i < 0) return;
+      if (layer) { layer.remove(); layer = null; }
+    }
+    if (first) { const j = signupGap(S, i); if (j >= 0 && j < i) { i = j; st = { ...read(), i, floor: Math.min(st.floor || 0, j), via: null }; write(st); } }
     if (i !== st.i) { st = { ...read(), i, via: st.via === S[i].key ? st.via : null }; write(st); }
-    const counts = x => !x.alt && !(D.uid && x.pre);   // logged in: the sign-up steps aren't part of your count
+    { const here = location.pathname + location.search; if (st.url !== here) { st = { ...read(), url: here }; write(st); } }   // where this step was: "Continue the tour" comes back here
+    const counts = x => !x.alt && !(D.uid && x.pre) && !(x.vonly && !D.verified) && !(x.locked && D.verified);   // logged in: the sign-up steps aren't part of your count; professors count what their verification state lets them do
     const s = S[i], main = S.filter(counts), num = Math.max(1, S.slice(0, i + 1).filter(counts).length), last = s.act === "done";
     const t = s.sel ? await waitFor(() => find(s.sel), 2500, g) : null;
     if (g !== gen) return;
@@ -270,7 +297,8 @@
       <div class="t-acts"><button type="button" class="t-skip linkbtn sm"></button><span class="t-gap"></span></div></div>`;
     document.body.appendChild(layer);
     const $ = q => layer.querySelector(q), tip = $(".t-tip"), acts = $(".t-acts"), hint = $(".t-hint");
-    $(".t-step").textContent = s.alt ? "" : L.step.replace("{0}", Math.min(num, main.length)).replace("{1}", main.length);
+    const stands = s.alt && i > 0 && counts(S[i - 1]) && !fits(S[i - 1], { via: null });   // a fallback standing in for the step before it keeps that step's number
+    $(".t-step").textContent = s.alt && !stands ? "" : L.step.replace("{0}", Math.min(num, main.length)).replace("{1}", main.length);
     $(".t-prog i").style.width = Math.round(Math.min(num, main.length) / main.length * 100) + "%";
     $("#t-h").textContent = s.title; $(".t-text").textContent = s.text;
     if (s.simulated) { const b = $(".t-sim"); b.hidden = false; b.textContent = L.sim; }
@@ -285,10 +313,11 @@
     };
     const nextIdx = i + 1, next = () => jump(nextIdx);
     const skip = $(".t-skip");
-    if (last) skip.remove();
+    if (last || s.act === "wait") skip.remove();   // a waiting step has nothing to skip to: the next steps need the confirmed account
     else { skip.textContent = L.skip; skip.onclick = () => { if (s.skip) jump(S.findIndex(z => z.key === s.skip), s.skip); else jump(nextIdx); }; }
     const btn = (label, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = label; b.onclick = fn; acts.appendChild(b); return b; };
-    if (i > 0 && !S[i - 1].via && fits(S[i - 1], { via: null }) && S[i - 1].act !== "submit" && !s.via) btn(L.back, "ghost sm", () => { const st2 = read(); write({ ...st2, i: i - 1, floor: Math.min(st2.floor || 0, i - 1) }); show(); });
+    let pj = i - 1; while (pj >= 0 && S[pj].alt && !fits(S[pj], { via: null })) pj--;   // Back skips fallback steps that aren't on this page
+    if (pj >= 0 && !S[pj].via && fits(S[pj], { via: null }) && S[pj].act !== "submit" && !s.via) btn(L.back, "ghost sm", () => { const st2 = read(); write({ ...st2, i: pj, floor: Math.min(st2.floor || 0, pj) }); show(); });
     const again = $(".t-again");   // while the demonstration plays: Pause / Resume; afterwards: Show again
     const setPause = v => { paused = v; if (layer) layer.dataset.paused = v ? "1" : ""; label(); };
     const label = () => { if (!layer) return; const running = layer.dataset.demo === "running"; again.textContent = running ? (paused ? "▶ " + L.resume_demo : "❚❚ " + L.pause) : "↻ " + L.again;
@@ -343,7 +372,11 @@
       if (t.matches("a[href]") || t.matches(SAFE)) btn(L.doit, "sm", async () => { const g2 = gen; await moveTo(t, g2); await press(g2); if (g2 === gen) t.click(); });
     } else if (s.act === "submit" && t) {
       hint.textContent = L.press;   // the next page moves the tour on; a form with an error stays on this step
+    } else if (s.act === "wait") {
+      // no button: something outside this page moves the tour on (the confirmation link in the email)
     } else if (!t) btn(L.next, "sm", next);   // the element isn't on the page: never get stuck
+    const pageErr = document.querySelector(".err[role=alert]");   // the form came back with an error: say it in the panel, where the person is looking
+    if (first && pageErr && pageErr.textContent.trim() && /^(input|check|submit|role|next)$/.test(s.act)) { const e = document.createElement("p"); e.className = "t-err"; e.setAttribute("role", "alert"); e.textContent = pageErr.textContent.trim(); $("#t-h").after(e); }
 
     // 1) scroll the element into the safe area and wait  2) fade in  3) cursor  4) demonstration
     spotOn(null); spot.classList.add("none");
@@ -377,7 +410,7 @@
 
   function resume(st, S, L) {   // on a page the tour has no step for: a small pill, never in the way
     layer = document.createElement("div"); layer.className = "tour t-pill in";
-    const a = document.createElement("a"); a.className = "btn sm"; a.href = goPage(S, st.i); a.textContent = L.resume;
+    const a = document.createElement("a"); a.className = "btn sm"; a.href = st.url && st.url.startsWith("/") && !st.url.startsWith("//") ? st.url : goPage(S, st.i); a.textContent = L.resume;
     const x = document.createElement("button"); x.type = "button"; x.className = "linkbtn sm"; x.textContent = L.end; x.onclick = end;
     layer.append(a, x); document.body.appendChild(layer);
   }
@@ -403,7 +436,7 @@
   });
   document.addEventListener("keydown", e => { if (e.key === "Escape" && layer && !layer.classList.contains("t-pill")) end(); });
   addEventListener("beforeunload", () => restore());
-  const boot = () => { D = data(); if (read()) show(); else clear(true); };
+  const boot = () => { D = data(); fresh = true; if (read()) show(); else clear(true); };
   document.addEventListener("DOMContentLoaded", boot);
   document.addEventListener("htmx:afterSettle", boot);
   addEventListener("pageshow", e => { if (e.persisted) boot(); });

@@ -1024,6 +1024,7 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .dbshell .onb{margin:0 0 1rem}
 /* tour additions */
 .t-warn{margin:.6rem 0 0;padding:.5rem .7rem;border-radius:10px;background:var(--warn-bg);color:var(--warn-ink);font-size:.9rem;line-height:1.45}
+.t-err{margin:.5rem 0 0;padding:.5rem .7rem;border-radius:10px;border:1px solid var(--bad);color:var(--bad);font-weight:600;font-size:.9rem;line-height:1.45}
 .t-acts{align-items:center}.t-acts .t-skip{margin-right:auto;color:var(--mut)}.t-acts .t-gap{display:none}
 .helptour{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}.tourlinks{display:flex;gap:1rem;flex-wrap:wrap}
 .howto-a .linkbtn{width:auto}

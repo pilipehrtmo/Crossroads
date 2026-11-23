@@ -1775,6 +1775,7 @@
     "Degree": "學位",
     "Lead's degree": "負責人的學位",
     "Any degree": "任何學位",
-    "Choose your degree: Bachelor's, Master's or PhD.": "請選擇你的學位：學士、碩士或博士。"
+    "Choose your degree: Bachelor's, Master's or PhD.": "請選擇你的學位：學士、碩士或博士。",
+    "This seat was filled a moment ago, so that application was not accepted.": "這個職位剛剛已經有人加入，所以那份申請沒有被接受。"
   }
 }
