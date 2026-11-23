@@ -1,7 +1,7 @@
 {% extends "base.html" %}{% from "_dept.html" import dept_picker with context %}{% block body %}{% set f = form or {} %}<div class="authwrap"><h1>Create your account</h1>
 <p class="muted tourlinks"><button type="button" class="linkbtn tourlink" data-tour="student:role">New student? Fill it in step by step</button><button type="button" class="linkbtn tourlink" data-tour="prof:p_role">Professor? Guide me</button></p>
 <p class="muted">Already have one? <a href="/login">Log in</a>. Other students see your full name; only admins see your student ID and email.</p>
-{% if error %}<p class="err" role="alert">{{ error }}</p>{% endif %}
+{% if error %}<p class="err" role="alert"{% if err_field %} data-field="{{ err_field }}"{% endif %}>{{ error }}</p>{% endif %}
 <form method="post" class="card" id="lf" hx-boost="false"><input type="hidden" name="csrf" value="{{ csrf }}">
 <label>I am a…</label>
 <div class="kinds" role="radiogroup" aria-label="Account type"><label class="kind"><input type="radio" name="role" value="student" {{ "checked" if f.get("role", "student") != "faculty" }}><span>Student</span></label>
@@ -25,7 +25,7 @@
 <div class="two"><div><label for="pw">Password</label><input id="pw" name="password" type="password" required minlength="8" maxlength="128" autocomplete="new-password" aria-describedby="pwh"></div>
 <div><label for="pw2">Confirm password</label><input id="pw2" name="password2" type="password" required minlength="8" maxlength="128" autocomplete="new-password"></div></div>
 <p class="muted fine" id="pwh">At least 8 characters. Don't reuse your school or email password.</p>
-<label class="chk"><input type="checkbox" name="agree" value="1" required><span>I agree to the <a href="/privacy" target="_blank">privacy notice</a></span></label>
+<label class="chk"><input type="checkbox" name="agree" value="1" required {{ "checked" if f.get("agree") }}><span>I agree to the <a href="/privacy" target="_blank">privacy notice</a></span></label>
 <p><button>Create account</button></p></form>
 </div>
 <script>

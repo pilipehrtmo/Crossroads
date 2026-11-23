@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from itsdangerous import URLSafeTimedSerializer, BadSignature
 from sqlmodel import Session, select, delete, func
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import update as sa_update
 from starlette.middleware.sessions import SessionMiddleware
 from apscheduler.schedulers.background import BackgroundScheduler
 from .config import *
@@ -327,36 +328,36 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
            evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), degree: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = re.sub(r"\s+", "", student_id)
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
-    back = lambda err: render(req, "signup.html", error=err, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence,
+    back = lambda err, field="": render(req, "signup.html", error=err, err_field=field, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence, agree=agree,
                                                                                  dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other, degree=degree))
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
-    if not V.email_ok(email): return back("Please enter a valid email address, for example name@gmail.com.")
+    if not V.email_ok(email): return back("Please enter a valid email address, for example name@gmail.com.", "#e")
     np_ = V.name_problem(name)
-    if np_: return back(np_)
-    if s.exec(select(User).where(func.lower(User.email) == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.")
+    if np_: return back(np_, "#n")
+    if s.exec(select(User).where(func.lower(User.email) == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.", "#e")
     if role == "faculty":
         if not (nthu_email(email) or academic_email(email)):
-            return back("Use your institutional email: an NTHU address such as name@cs.nthu.edu.tw or name@gapp.nthu.edu.tw, or, for a joint or visiting appointment, your university or institute address.")
-        if title not in TITLES and not (title == "Other academic appointment" and title_other.strip()): return back("Choose your academic title, or write it in the box under Other.")
-        if len(dept) < 2: return back("Enter your department.")
-        if page and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.")
+            return back("Use your institutional email: an NTHU address such as name@cs.nthu.edu.tw or name@gapp.nthu.edu.tw, or, for a joint or visiting appointment, your university or institute address.", "#e")
+        if title not in TITLES and not (title == "Other academic appointment" and title_other.strip()): return back("Choose your academic title, or write it in the box under Other.", "#ti")
+        if len(dept) < 2: return back("Enter your department.", "#dp")
+        if page and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.", "#pg")
         if s.exec(select(User).where(User.role == "faculty", User.faculty_status != "rejected", func.lower(User.name) == name.lower(), func.lower(User.faculty) == dept.lower())).first():
-            return back("A professor account with this name and department already exists. If it's yours, log in or use Forgot password; otherwise contact an admin.")
+            return back("A professor account with this name and department already exists. If it's yours, log in or use Forgot password; otherwise contact an admin.", "#n")
         sid = ""
     else:
         if STUDENT_EMAIL_RULE == "nthu" and not nthu_email(email) and email not in ADMIN_EMAILS:
-            return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.")
-        if not SID.match(sid): return back("Your student ID must be exactly 9 digits, for example 115006212.")
-        if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.")
+            return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.", "#e")
+        if not SID.match(sid): return back("Your student ID must be exactly 9 digits, for example 115006212.", "#s")
+        if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.", "#s")
         dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
-        if derr: return back(derr)
-        if degree not in DEP.DEGREES: return back("Choose your degree: Bachelor's, Master's or PhD.")
+        if derr: return back(derr, "#dpw")
+        if degree not in DEP.DEGREES: return back("Choose your degree: Bachelor's, Master's or PhD.", "#dg")
     err = password_problem(password, email, name)
-    if err: return back(err)
-    if password != password2: return back("The two passwords are not the same.")
-    if not agree: return back("Please agree to the privacy notice to create an account.")
+    if err: return back(err, "#pw")
+    if password != password2: return back("The two passwords are not the same.", "#pw2")
+    if not agree: return back("Please agree to the privacy notice to create an account.", "#lf .chk")
     u = User(email=email, name=name, student_id=sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
     u.lang = pick_lang(req)
     if role == "faculty":
@@ -1031,6 +1032,13 @@ def edit_application(aid: int, message: str = Form(""), next: str = Form("/activ
     if user and a.user_id == user.id and a.status == "pending": a.message = message; s.commit()
     return go(back + "?n=edited")
 
+def take_seat(s, role_id) -> bool:
+    """Mark a seat filled in ONE statement that only succeeds while it is still empty. Two accepts at the same moment:
+    the database lets exactly one through (the other waits for the row, sees filled = true and changes nothing)."""
+    res = s.execute(sa_update(Role).where(Role.id == role_id, Role.filled == False).values(filled=True))
+    if res.rowcount == 1: s.expire_all(); return True   # the copies in this session must not overwrite filled later
+    return False
+
 @app.post("/applications/{aid}/{decision}")
 def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     a = s.get(Application, aid); r = s.get(Role, a.role_id) if a else None; pr = s.get(Project, r.project_id) if r else None
@@ -1045,11 +1053,13 @@ def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: S
         notify(s, [a.user_id], "removed", f"You were removed from the {r.name} seat of {pr.title}", f"/projects/{pr.id}", pr.id, user.id)
         return go(f"/projects/{pr.id}?n=removed#seats")
     if user.id == pr.owner_id and a.status == "pending" and decision in ("accepted", "rejected") and not r.filled:
+        if decision == "accepted" and not take_seat(s, r.id):   # someone else got the seat a moment ago (two tabs, two clicks)
+            s.rollback(); s.refresh(a)   # a double click on the same Accept: the first click already did it
+            return go(f"/projects/{pr.id}" if a.status == "accepted" else f"/projects/{pr.id}?n=seatfull#seats")
         a.status = decision
         from .notify import notify
         notify(s, [a.user_id], "app_decision", f"{'You joined' if decision == 'accepted' else 'Your application was not accepted for'} {pr.title}{' as ' + r.name if decision == 'accepted' else ''}", f"/projects/{pr.id}", pr.id, user.id)
-        if decision == "accepted":
-            r.filled = True   # the seat is taken: close the other applications for it
+        if decision == "accepted":   # the seat is taken (take_seat above): close the other applications for it
             for o in s.exec(select(Application).where(Application.role_id == r.id, Application.id != a.id, Application.status == "pending")).all(): o.status = "closed"
         s.commit()
     return go(f"/projects/{pr.id}")
