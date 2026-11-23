@@ -13,7 +13,7 @@
   document.addEventListener("click", e => {
     if (e.target.closest("#themetoggle,.themebtn")) applyTheme(document.documentElement.dataset.mode === "dark" ? "light" : "dark");
     const menu = document.querySelector("details.nme");   // name menu: close when clicking elsewhere
-    if (menu && menu.open && !menu.contains(e.target)) menu.open = false;
+    if (menu && menu.open && !menu.contains(e.target) && !e.target.closest(".tour")) menu.open = false;   // the tutorial panel may be explaining this menu
     const nn = e.target.closest("#namenote button");      // one-time notice that full names are shown
     if (nn) { document.cookie = "namenote=1; path=/; max-age=31536000; samesite=lax"; nn.closest("#namenote").remove(); }
     const d = e.target.closest("input[type=date]");       // clicking anywhere in a date field opens the calendar

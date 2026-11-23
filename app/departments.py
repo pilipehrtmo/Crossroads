@@ -120,7 +120,8 @@ def degree_label(code: str, lang: str = "en") -> str:
 
 def study(u, lang: str = "en") -> str:
     """Degree and department together, e.g. "Master's · Computer Science". Either part may be missing."""
-    return " · ".join(x for x in (degree_label(getattr(u, "degree", "") or "", lang), display(u, lang)) if x)
+    deg = "" if getattr(u, "role", "") == "faculty" else degree_label(getattr(u, "degree", "") or "", lang)   # degrees are for students
+    return " · ".join(x for x in (deg, display(u, lang)) if x)
 
 
 def tracks(lang: str = "en"): return [(t, _name(x, lang)) for t, x in TRACKS.items()]

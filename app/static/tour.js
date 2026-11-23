@@ -31,6 +31,7 @@
     if (s.unless && !skipped && location.search.includes(s.unless)) return false;
     if (s.via && st.via !== s.key) return false;          // reached only by skipping to it
     if (s.locked && D.verified) return false;
+    if (s.phone !== undefined && s.phone !== phone()) return false;   // a step written for phones only, or for bigger screens only
     if (s.need) { try { if (!document.querySelector(s.need)) return false; } catch (_) { return false; } }
     return true;
   }
@@ -242,6 +243,7 @@
     if (layer) { const old = layer; old.classList.remove("in"); setTimeout(() => old.remove(), T.fade); } layer = null;
     document.querySelectorAll(".t-preview").forEach(p => p.remove());
     if (all) { if (spot) spot.classList.remove("on"); hideCursor(); }
+    else caption("");   // a demonstration cut short (Next pressed while it played) must not leave its label on the cursor
     focusEl = mainEl = null;
   }
   const end = () => { write(null); clear(true); };
@@ -284,8 +286,11 @@
     if (first) { const j = signupGap(S, i); if (j >= 0 && j < i) { i = j; st = { ...read(), i, floor: Math.min(st.floor || 0, j), via: null }; write(st); } }
     if (i !== st.i) { st = { ...read(), i, via: st.via === S[i].key ? st.via : null }; write(st); }
     { const here = location.pathname + location.search; if (st.url !== here) { st = { ...read(), url: here }; write(st); } }   // where this step was: "Continue the tour" comes back here
-    const counts = x => !x.alt && !(D.uid && x.pre) && !(x.vonly && !D.verified) && !(x.locked && D.verified);   // logged in: the sign-up steps aren't part of your count; professors count what their verification state lets them do
+    const counts = x => !x.alt && !(D.uid && x.pre) && !(x.vonly && !D.verified) && !(x.locked && D.verified) && !(x.phone !== undefined && x.phone !== phone());   // logged in: the sign-up steps aren't part of your count; professors count what their verification state lets them do
     const s = S[i], main = S.filter(counts), num = Math.max(1, S.slice(0, i + 1).filter(counts).length), last = s.act === "done";
+    if (s.open) {   // a step about a menu: open it for the person (closed again when the step ends)
+      const m = document.querySelector(s.open); if (m && !m.open) { m.open = true; cleanup.push(() => { m.open = false; }); }
+    }
     const t = s.sel ? await waitFor(() => find(s.sel), 2500, g) : null;
     if (g !== gen) return;
     mainEl = focusEl = t;
@@ -317,7 +322,7 @@
     if (last || s.act === "wait") skip.remove();   // a waiting step has nothing to skip to: the next steps need the confirmed account
     else { skip.textContent = L.skip; skip.onclick = () => { if (s.skip) jump(S.findIndex(z => z.key === s.skip), s.skip); else jump(nextIdx); }; }
     const btn = (label, cls, fn) => { const b = document.createElement("button"); b.type = "button"; b.className = cls; b.textContent = label; b.onclick = fn; acts.appendChild(b); return b; };
-    let pj = i - 1; while (pj >= 0 && S[pj].alt && !fits(S[pj], { via: null })) pj--;   // Back skips fallback steps that aren't on this page
+    let pj = i - 1; while (pj >= 0 && (S[pj].alt || S[pj].phone !== undefined) && !fits(S[pj], { via: null })) pj--;   // Back skips fallback steps that aren't on this page
     if (pj >= 0 && !S[pj].via && fits(S[pj], { via: null }) && S[pj].act !== "submit" && !s.via) btn(L.back, "ghost sm", () => { const st2 = read(); write({ ...st2, i: pj, floor: Math.min(st2.floor || 0, pj) }); show(); });
     const again = $(".t-again");   // while the demonstration plays: Pause / Resume; afterwards: Show again
     const setPause = v => { paused = v; if (layer) layer.dataset.paused = v ? "1" : ""; label(); };
