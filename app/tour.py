@@ -307,6 +307,39 @@ PROF = [
       ("驗證前能做的都完成了", "研究職缺和審閱學生申請會在管理員驗證你之後開放。屆時你會收到通知，「新手上路」清單會告訴你還剩什麼。你也可以從個人選單重播這個導覽。"), locked=True),
 ]
 
+ADMIN = [   # read-only walk through /admin: every step is "Next", nothing is pressed or changed
+    S("a_start", r"^/admin$", ".stats", "next",
+      ("Welcome, admin", "This page is where you keep the site healthy. These four numbers tell you what needs you today: accounts, people waiting for verification, open reports and scraped competitions to review."),
+      ("歡迎，管理員", "這一頁用來維護整個網站。這四個數字告訴你今天要處理什麼：帳號數、等待驗證的人、未處理的檢舉，以及待審核的爬取競賽。"), go="/admin"),
+    S("a_chips", r"^/admin$", ".chips", "next",
+      ("Jump to a section", "Each chip scrolls to one section. A number in brackets means something is waiting there."),
+      ("跳到某個區塊", "每個標籤會捲到對應的區塊。括號裡的數字代表那裡有待處理的事。"), go="/admin"),
+    S("a_reports", r"^/admin$", "#reports", "next",
+      ("Reports", "When someone reports a post, it is hidden and lands here. Keep it (unhide), remove it, ban the author, or dismiss the report."),
+      ("檢舉", "有人檢舉貼文時，貼文會先被隱藏並出現在這裡。你可以保留（取消隱藏）、刪除內容、封鎖作者，或駁回檢舉。"), go="/admin"),
+    S("a_comp", r"^/admin$", "#competitions", "next",
+      ("Competitions", "The scrapers find competitions automatically, but they only go public after you approve them. Press Show to open the list; you can also add one by hand."),
+      ("競賽", "爬蟲會自動找到競賽，但要你核准後才會公開。按「顯示」打開清單，也可以手動新增。"), go="/admin"),
+    S("a_faculty", r"^/admin$", "#faculty", "next",
+      ("Professor verification", "Professors send their details here. Check them against the official faculty page, then verify: only verified professors can post research positions and review applications."),
+      ("教授驗證", "教授會把資料送到這裡。對照學校的教師頁面確認後再驗證：只有通過驗證的教授才能發布研究職缺和審閱申請。"), go="/admin"),
+    S("a_depts", r"^/admin$", "#depts", "next",
+      ("Departments to check", "Departments someone typed that aren't on the official list. Map each one to the right department so matching and filters stay accurate."),
+      ("待確認的系所", "使用者自行輸入、不在官方清單上的系所。把每一個對應到正確的系所，配對和篩選才會準確。"), go="/admin"),
+    S("a_track", r"^/admin$", "#track", "next",
+      ("Track record", "When a lead and a member disagree about a finished project, you decide here. You can also mark a completion Admin-verified after checking its evidence."),
+      ("專案紀錄", "隊長和成員對完成的專案有不同說法時，由你在這裡決定。檢查證據後，也可以把完成紀錄標為「管理員已確認」。"), go="/admin"),
+    S("a_users", r"^/admin$", "#users", "next",
+      ("Users", "Every account, with its status. Verify students, unban people, or remove a bad profile photo. Admin accounts can't be banned from here."),
+      ("使用者", "所有帳號和狀態。你可以驗證學生、解除封鎖，或移除不當的大頭貼。管理員帳號無法在這裡封鎖。"), go="/admin"),
+    S("a_scraper", r"^/admin$", "#scraper", "next",
+      ("Scraper", "See when the scrapers last ran and whether one failed. Add or remove NTHU announcement pages to scan. Run scrapers now (top of the page) starts a run immediately."),
+      ("爬蟲", "查看爬蟲上次執行的時間以及是否失敗。可以新增或移除要掃描的清華公告頁面。頁面最上方的「立即執行爬蟲」會馬上跑一次。"), go="/admin"),
+    S("a_done", r"^/admin$", "h1", "done",
+      ("That's the tour", "Check the four numbers at the top each day and work through anything with a count. You can replay this tour with Guide me next to the page title."),
+      ("導覽結束", "每天看一下最上方的四個數字，處理有數字的區塊就好。可以按標題旁的「帶我做」重播。"), go="/admin"),
+]
+
 TOURS = {"student": STUDENT, "prof": PROF}
 LABELS = {"en": dict(next="Next", back="Back", skip="Skip this step", end="End tour", done="Finish", go="Take me there", resume="Continue the tour", step="Step {0} of {1}",
                      fill="Fill this in to continue, or skip this step", tick="Choose this to continue, or skip this step", press="Press the highlighted button when you're ready",
@@ -332,6 +365,8 @@ def tour_data(lang, user=None):
             d["demo"] = [{k: v for k, v in dict(a, text=a.get("zh" if zh else "en", ""), value=(a.get("value_zh") if zh and a.get("value_zh") else a.get("value", ""))).items()
                           if k not in ("en", "zh", "value_zh")} for a in st["demo"]]
         return d
+    if user and user.is_admin:   # admins only get their own tour
+        return dict(tours={"admin": [one(s) for s in ADMIN]}, labels=LABELS["zh" if zh else "en"], verified=False, uid=user.id)
     from .whatsnew import tour_steps
     tours = {k: [one(s) for s in v] for k, v in TOURS.items()}
     for k, first in (("student", "skills"), ("prof", "p_status")):   # sign-up steps: not counted for someone already logged in

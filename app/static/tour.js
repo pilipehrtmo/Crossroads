@@ -425,7 +425,7 @@
     const b = e.target.closest("[data-tour]"); if (!b) return;
     e.preventDefault(); D = D || data(); if (!D) return;
     let [t, key] = b.dataset.tour.split(":");
-    if (t === "replay") { t = document.body.dataset.role === "prof" ? "prof" : "student"; key = t === "prof" ? "p_status" : "skills"; }
+    if (t === "replay") { t = D.tours.admin ? "admin" : document.body.dataset.role === "prof" ? "prof" : "student"; key = { admin: "a_start", prof: "p_status", student: "skills" }[t]; }
     if (!key) { key = t; t = "student"; }
     const S = D.tours[t]; if (!S) return;
     const i = Math.max(0, S.findIndex(s => s.key === key)), st = { t, i, floor: i, via: null, uid: D.uid };
