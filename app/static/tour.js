@@ -67,6 +67,7 @@
   }
   async function reveal(el, g, sheetH = 0) {
     if (!el) return;
+    if (el.closest(".top, .tabbar")) return;   // the top bar and the phone tab bar never scroll: moving the page can't bring them closer
     const r = el.getBoundingClientRect(), a = area(sheetH);
     if (r.top >= a.top && r.bottom <= a.bottom) return;            // already comfortably visible: don't move the page
     const room = a.bottom - a.top;

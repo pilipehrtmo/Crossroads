@@ -402,7 +402,8 @@ html,body{overflow-x:clip}
 .nmenu form button{color:var(--bad)}
 .namenote{margin:0 0 1rem;padding:.6rem 1rem;display:flex;gap:1rem;align-items:center;justify-content:space-between;background:var(--pri-soft);color:var(--pri-ink);border-radius:12px;font-size:.9rem;}
 @media(max-width:899px){.na .nlinks a{padding:.5rem .55rem}.top nav.topnav.na{gap:1rem}.nme .nname{display:none}.nme summary{padding:.22rem .5rem .22rem .22rem}}
-@media(max-width:699px){.na .nlinks,.na .npost{display:none}.nmenu{width:min(250px,calc(100vw - 2rem))}}
+.nmenu a.mnav{display:none}
+@media(max-width:699px){.na .nlinks,.na .npost{display:none}.nmenu a.mnav{display:block}.nmenu{width:min(250px,calc(100vw - 2rem))}}
 
 /* ---------- profile photos ---------- */
 img.pic{object-fit:cover;padding:0;background:var(--soft)}
