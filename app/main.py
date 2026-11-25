@@ -274,8 +274,8 @@ def use_token(s, t, kinds):
 
 def send_verify(s, u):
     link = make_link(s, u, "verify", 48)
-    send_mail(u.email, "Confirm your email for NTHU Matchmaker",
-              f"Hi {u.name or ''},\n\nConfirm your email to finish creating your NTHU Matchmaker account:\n{link}\n\nThe link works for 48 hours. If you did not sign up, ignore this email.")
+    send_mail(u.email, "Confirm your email for Matchmaker",
+              f"Hi {u.name or ''},\n\nConfirm your email to finish creating your Matchmaker account:\n{link}\n\nThe link works for 48 hours. If you did not sign up, ignore this email.")
 
 def pw_stamp(u): return hashlib.sha256((u.password_hash or "").encode()).hexdigest()[:12]
 def start_session(req, u):
@@ -422,7 +422,7 @@ def forgot(req: Request, email: str = Form(""), s: Session = Depends(get_session
     u = s.exec(select(User).where(User.email == email)).first()
     if u and not u.banned:
         link = make_link(s, u, "reset", 1)
-        try: send_mail(u.email, "Set your NTHU Matchmaker password", f"Hi {u.name or ''},\n\nSet a new password here (the link works for 1 hour):\n{link}\n\nIf you did not ask for this, ignore this email.")
+        try: send_mail(u.email, "Set your Matchmaker password", f"Hi {u.name or ''},\n\nSet a new password here (the link works for 1 hour):\n{link}\n\nIf you did not ask for this, ignore this email.")
         except Exception as e:
             print(">>> RESET EMAIL FAILED", email, type(e).__name__, e)
             return render(req, "forgot.html", can_email=True, error="We could not send the email just now. Try again in a minute.", email=email)

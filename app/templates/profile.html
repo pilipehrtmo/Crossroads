@@ -39,7 +39,7 @@ document.getElementById("phfile").addEventListener("change",async e=>{const f=e.
 <div><label for="hr">Hours per week you can give</label><input id="hr" name="hours" type="number" min="1" max="60" value="{{ user.hours }}"></div></div>
 <div class="psec" id="experience"><div class="psec-h"><h2>Experience</h2><span class="pill ok">Public</span></div>
 <p class="muted">One item per line. Your CV can fill these in; check them before saving.</p>
-{% for f, label, ph in [("competitions", "Competitions", "e.g. 3rd Place, Business Plan Competition (2024)"), ("past_projects", "Projects", "e.g. NTHU Matchmaker (2026) — team lead, FastAPI web app"), ("awards", "Awards and honours", "e.g. Gold Medal, National Mathematics Olympiad (2025)")] %}
+{% for f, label, ph in [("competitions", "Competitions", "e.g. 3rd Place, Business Plan Competition (2024)"), ("past_projects", "Projects", "e.g. Matchmaker (2026) — team lead, FastAPI web app"), ("awards", "Awards and honours", "e.g. Gold Medal, National Mathematics Olympiad (2025)")] %}
 <label for="x-{{ f }}">{{ label }}</label><textarea id="x-{{ f }}" name="{{ f }}" rows="3" placeholder="{{ ph }}">{{ user[f] }}</textarea>{% endfor %}</div>
 <div class="psec"><div class="psec-h"><h2>Contact</h2><span class="pill">🔒 Private</span></div>
 <p class="muted">Shown only to your teammates after an application is accepted.</p>

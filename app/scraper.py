@@ -20,7 +20,7 @@ from sqlmodel import Session, select
 from .db import engine
 from .models import Competition, SourcePage, ScrapeLog, ScrapeSeen, SavedItem
 from .config import NTHU_PAGES
-UA = "NTHU-Matchmaker/0.1 (student project; lists competitions for NTHU students)"
+UA = "Matchmaker/0.1 (student project; lists competitions for NTHU students)"
 HDRS = {"User-Agent": UA, "Accept-Language": "zh-TW,zh;q=0.9,en;q=0.8"}
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("scraper")

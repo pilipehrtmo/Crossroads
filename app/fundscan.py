@@ -16,7 +16,7 @@ from .db import engine
 from .models import Program
 
 log = logging.getLogger("fundscan")
-UA = "NTHU-Matchmaker/0.1 (student project; checks public program pages once a day)"
+UA = "Matchmaker/0.1 (student project; checks public program pages once a day)"
 KEYWORDS = r"(截止|收件|申請期間|申請時間|報名期間|報名時間|報名截止|徵件期間|徵件時間|受理|deadline|due date|apply by|applications? close|closing date|submission)"
 MONTHS = {m: i for i, m in enumerate(["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
 DATE_PATTERNS = [

@@ -27,8 +27,8 @@ W_CODE = ("This sends an email with a code to your address.", "這會寄一封�
 
 STUDENT = [
     S("start", r"^/$", '.howto-a a[href="/signup"]|.npost[href="/signup"]', "click",
-      ("Welcome to NTHU Matchmaker", "This tour takes about two minutes: you create your account, add your skills and apply for a seat on a real team. Press Create an account to begin."),
-      ("歡迎來到 NTHU Matchmaker", "這個導覽大約兩分鐘：建立帳號、加上技能，然後申請一個真實團隊的職位。按「建立帳號」開始。"), go="/"),
+      ("Welcome to Matchmaker", "This tour takes about two minutes: you create your account, add your skills and apply for a seat on a real team. Press Create an account to begin."),
+      ("歡迎來到 Matchmaker", "這個導覽大約兩分鐘：建立帳號、加上技能，然後申請一個真實團隊的職位。按「建立帳號」開始。"), go="/"),
     S("role", r"^/signup$", "#lf .kinds", "role",
       ("Student or professor?", "Pick the one that fits you. Professors get their own tour, with the verification steps."),
       ("學生還是教授？", "選擇符合你的身分。教授會看到專屬導覽，包含身分驗證步驟。"), need="#lf", go="/signup", role="student", other="prof:p_email",

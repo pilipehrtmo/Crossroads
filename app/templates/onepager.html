@@ -43,7 +43,7 @@ hr{border:0;border-top:1px solid #e2d9ee;margin:4.5mm 0 3.5mm}
 </style></head><body>
 <div class="bar"><button type="button" onclick="window.print()">Save as PDF</button><span>In the print window, choose "Save as PDF" as the printer.</span><a href="/projects/{{ pr.id }}">Back to the project</a></div>
 <div class="sheet"><div class="page">
-<div class="top"><span class="logo"></span>NTHU Matchmaker · Startup one-pager</div>
+<div class="top"><span class="logo"></span>Matchmaker · Startup one-pager</div>
 <h1>{{ pr.title }}</h1>
 {% if pr.tagline %}<p class="tag">{{ pr.tagline }}</p>{% endif %}
 <div class="pills"><span class="pill st">Startup</span>{% if pr.category %}<span class="pill">{{ pr.category }}</span>{% endif %}{% if pr.stage %}<span class="pill">Stage: {{ pr.stage }}</span>{% endif %}<span class="pill">{{ pr.hours_per_week }} h/week per member</span></div>
@@ -68,7 +68,7 @@ hr{border:0;border-top:1px solid #e2d9ee;margin:4.5mm 0 3.5mm}
 {% for c in checks[:3] %}{% set miss = c.lines|selectattr(0, "equalto", "miss")|list %}<div class="r"><b>{{ c.p.name.split(" (")[0] }}</b>
 {% if c.ready %}<span class="ok">✔ Looks eligible</span>{% else %}<span class="no">✘ {{ miss[0][1] }}</span>{% endif %}
 {% if c.days is not none and c.days >= 0 %}<br>Deadline: {{ c.p.next_deadline }}{% endif %}</div>{% endfor %}</div></div>{% endif %}
-<div class="foot"><div>Contact the team on NTHU Matchmaker:<br><a href="{{ link }}">{{ link }}</a><br>Made on {{ today }}. Funding rules and dates change; check each program's official call.</div><div class="qr" aria-label="QR code linking to the project">{{ qr }}</div></div>
+<div class="foot"><div>Contact the team on Matchmaker:<br><a href="{{ link }}">{{ link }}</a><br>Made on {{ today }}. Funding rules and dates change; check each program's official call.</div><div class="qr" aria-label="QR code linking to the project">{{ qr }}</div></div>
 </div></div>
 <script>
 // Long pitches would run past the bottom of the A4 page: shrink the whole page evenly until everything, QR code included, fits.

@@ -61,7 +61,7 @@ def whatsnew_data(user, lang):
                             title=it["zh" if zh else "en"][0], text=it["zh" if zh else "en"][1], cta=it["cta"][1 if zh else 0], href=it["href"],
                             tour=f"new:wn_{it['key']}" if it["step"] else "", fresh=fresh))
     return dict(items=out, latest=RELEASES[0]["id"] if RELEASES else "", uid=user.id,
-                labels=dict(title="What's new" if not zh else "最新功能", sub=("New on NTHU Matchmaker" if not zh else "NTHU Matchmaker 的新功能"),
+                labels=dict(title="What's new" if not zh else "最新功能", sub=("New on Matchmaker" if not zh else "Matchmaker 的新功能"),
                             prev="Previous" if not zh else "上一個", next="Next" if not zh else "下一個", done="Done" if not zh else "完成",
                             show="Show me" if not zh else "帶我看", close="Close" if not zh else "關閉"))
 

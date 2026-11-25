@@ -1,9 +1,9 @@
 {% set path = request.url.path %}<!doctype html><html lang="{{ 'zh-Hant-TW' if lang == 'zh' else 'en' }}" data-theme="{{ theme or 'light' }}" data-mode="{{ 'dark' if theme == 'dark' else 'light' }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>NTHU Matchmaker</title>
+<title>Matchmaker</title>
 <script>(()=>{const h=document.documentElement;if(h.dataset.theme==="system")h.dataset.mode=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";h.classList.add("js")})()</script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="{{ asset('style.css') }}"><script src="{{ asset('htmx.min.js') }}"></script><script src="{{ asset('app.js') }}" defer></script><script src="{{ asset('tour.js') }}" defer></script><script src="{{ asset('whatsnew.js') }}" defer></script></head><body hx-boost="true" data-role="{{ 'prof' if user and user.role == 'faculty' else 'student' }}">
-<header class="top"><nav class="topnav na" aria-label="Main"><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="bname">NTHU Matchmaker</span></a>
+<header class="top"><nav class="topnav na" aria-label="Main"><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="bname">Matchmaker</span></a>
 <div class="nlinks"><a href="/research" class="{{ 'on' if path == '/research' or path.startswith('/openings') }}">Research</a><a href="/discuss" class="{{ 'on' if path.startswith('/discuss') }}">Discuss</a><a href="/funding" class="{{ 'on' if path == '/funding' }}">Funding</a>
 {% if user and user.is_faculty %}<a href="/advisor" class="{{ 'on' if path == '/advisor' }}">Dashboard{% if inbox %}<span class="nbadge" aria-label="{{ inbox }} waiting">{{ inbox }}</span>{% endif %}</a>
 {% elif user %}<a href="/activity" class="{{ 'on' if path == '/activity' }}">Activity{% if inbox %}<span class="nbadge" aria-label="{{ inbox }} waiting">{{ inbox }}</span>{% endif %}</a>{% endif %}</div>

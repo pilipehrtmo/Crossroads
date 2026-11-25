@@ -46,7 +46,7 @@ def fetch_page(url: str, timeout: float = 8.0):
     """Open an NTHU page ourselves. Returns (text, final_url, error). Only nthu.edu.tw, public addresses, 3 redirects."""
     if not nthu_url(url): return "", url, "The link is not on an nthu.edu.tw website."
     try:
-        with httpx.Client(timeout=timeout, follow_redirects=False, headers={"User-Agent": "NTHU-Matchmaker faculty check"}) as c:
+        with httpx.Client(timeout=timeout, follow_redirects=False, headers={"User-Agent": "Matchmaker faculty check"}) as c:
             for _ in range(4):
                 host = urlparse(url).hostname
                 if not _public_host(host): return "", url, "Could not reach that page."
