@@ -1,0 +1,39 @@
+name: tests
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      QA_PG: env
+      QA_PG_URL: postgresql+psycopg2://postgres:postgres@localhost:5432
+      QA_LOG_DIR: /tmp/qa
+      QA_PORT: "8040"
+      QA_DB: ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11.9", cache: pip }
+      - run: pip install -r requirements.txt pytest
+      - name: Unit tests
+        run: python -m pytest -q
+      - name: Start a test server
+        run: |
+          createdb ci
+          DEMO=1 QA_PYTHON=python qa/run_server.sh 8040 ci
+      - name: Every page loads without a server error
+        run: python qa/smoke.py 8040 ci
+      - name: Security and abuse checks
+        run: python qa/abuse.py
+      - name: Server log has no crash
+        if: always()
+        run: "! grep -n Traceback /tmp/qa/srv_8040.log"
