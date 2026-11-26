@@ -52,7 +52,7 @@ def seed_demo():
         for i, (handle, faculty, bio, skills) in enumerate(OWNERS, 1):
             u = s.exec(select(User).where(User.handle == handle)).first()
             if not u:
-                u = User(email=f"{handle}@demo.local", handle=handle, name=handle, student_id=f"DEMO{i:03d}",
+                u = User(origin="seed", email=f"{handle}@demo.local", handle=handle, name=handle, student_id=f"DEMO{i:03d}",
                          faculty=faculty, bio=bio, skills=skills, verified=True, hours=6)
                 s.add(u); s.commit(); s.refresh(u)
             owners[handle] = u
@@ -61,7 +61,7 @@ def seed_demo():
             if s.exec(select(Project).where(Project.title == title)).first():
                 continue
             comp = s.exec(select(Competition).where(Competition.url == url)).first() if url else None
-            pr = Project(owner_id=owners[owner].id, kind=kind, title=title, description=desc, hours_per_week=hours,
+            pr = Project(origin="seed", owner_id=owners[owner].id, kind=kind, title=title, description=desc, hours_per_week=hours,
                          deadline=(today + timedelta(days=days)).isoformat(), competition_id=comp.id if comp else None)
             s.add(pr); s.commit(); s.refresh(pr)
             for name, sk in seats:

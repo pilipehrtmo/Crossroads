@@ -38,15 +38,23 @@
 {% if is_owner and days is not none and days < 0 and pr.status == "open" %}<p class="muted" style="margin:.6rem 0 0">The join-by date has passed, so this project is hidden from the home page. Edit it to set a new date.</p>{% endif %}{% endif %}</section>
 {% if reveal %}<div class="reveal">You're in the team. Contact the lead: {{ contact_list(owner) }}</div>{% endif %}
 <section class="seatsec" id="seats"><h2>Seats</h2>
+{% if gap.must_covered or gap.must_missing or gap.nice_missing %}<div class="card gapcard" id="team-skills"><h3>Team skills</h3>
+<p class="muted fine">From the profiles of the lead and accepted members, compared with the skills the seats ask for. {{ gap.filled_seats }} filled · {{ gap.open_seats }} open.</p>
+{% if gap.must_covered %}<p class="gaprow"><span class="gaplab">Already covered</span>{% for t in gap.must_covered + gap.nice_covered %}<span class="tag hit">{{ keep(t) }}</span>{% endfor %}</p>{% endif %}
+{% if gap.must_missing %}<p class="gaprow"><span class="gaplab">Missing must-have</span>{% for t in gap.must_missing %}<span class="tag gapmiss">{{ keep(t) }}</span>{% endfor %}</p>{% endif %}
+{% if gap.nice_missing %}<p class="gaprow"><span class="gaplab">Missing nice-to-have</span>{% for t in gap.nice_missing %}<span class="tag">{{ keep(t) }}</span>{% endfor %}</p>{% endif %}
+{% if not gap.must_missing %}<p class="muted fine">Every must-have skill is already on the team.</p>{% endif %}</div>{% endif %}
 {% if is_owner %}<p class="muted fine seathint">When someone applies, they appear under the seat with their note. Accept to add them to the team; you then see each other's contacts.</p>
 {% elif user %}<p class="muted fine seathint">Pick a seat that fits you, press <b>Apply for this seat</b> and say why you fit. The lead gets a notification, and you see their contact once you're accepted.</p>
 {% else %}<p class="muted fine seathint"><a href="/login">Log in</a> or <a href="/signup">create an account</a> to apply for a seat.</p>{% endif %}<div class="seatlist">
 {% for x in roles %}<article class="seatcard {{ 'is-filled' if x.r.filled }}" id="seat-{{ x.r.id }}">
-<header><h3>{{ x.r.name }}{% if x.r.advisor %} <span class="pill advpill">Advisor seat</span>{% elif x.r.beginner %} <span class="beginner-pill">No prior experience required</span>{% endif %}</h3><span class="seattags">{% if x.pct is not none %}<span class="pill match">{{ x.pct }}% match</span>{% endif %}<span class="badge {{ 'b-filled' if x.r.filled else 'b-open' }}">{{ "Filled" if x.r.filled else "Open" }}</span></span></header>
+<header><h3>{{ x.r.name }}{% if x.r.advisor %} <span class="pill advpill">Advisor seat</span>{% elif x.r.beginner %} <span class="beginner-pill">No prior experience required</span>{% endif %}</h3><span class="seattags">{% if x.cov_label %}<span class="pill match">{{ keep(x.cov_label) }}</span>{% endif %}<span class="badge {{ 'b-filled' if x.r.filled else 'b-open' }}">{{ "Filled" if x.r.filled else "Open" }}</span></span></header>
 {% if x.r.about %}<p class="s-about-v">{{ x.r.about }}</p>{% endif %}
 <details class="sdet"><summary><span class="sd-open">Details</span><span class="sd-close">Hide details</span>{% if x.r.must or x.r.nice or x.r.years %}<small class="muted"> · requirements, skills</small>{% else %}<small class="muted"> · skills</small>{% endif %}</summary>
-<div>{% for t in x.r.skills.split(",") if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in mytags }}">{{ t.strip() }}</span>{% endfor %}</div>
-{% if x.why %}<p class="muted" style="margin:.3rem 0">{{ x.why }}</p>{% endif %}
+{% set must = skill_tags(x.r.skills) %}{% set nice = skill_tags(x.r.nice_skills or "") %}
+{% if must %}<p class="req-h">{{ "Field or expertise" if x.r.advisor else "Must-have skills" }}</p><div>{% for t in must %}<span class="tag {{ 'hit' if t in mytags }}">{{ keep(t) }}</span>{% endfor %}</div>{% endif %}
+{% if nice %}<p class="req-h">Nice to have</p><div>{% for t in nice if t not in must %}<span class="tag {{ 'hit' if t in mytags }}">{{ keep(t) }}</span>{% endfor %}</div>{% endif %}
+{% if x.why %}<ul class="covwhy">{% for w in x.why %}<li>{{ keep(w) }}</li>{% endfor %}</ul>{% endif %}
 {% if x.r.must or x.r.nice or x.r.years %}<div class="reqs">
 {% if x.r.years %}<span class="pill yrspill">{{ x.r.years }}+ year{{ "s" if x.r.years != 1 }}{% if x.r.years_in %} in {{ x.r.years_in }}{% endif %}</span>{% endif %}
 {% if x.r.must %}<div><p class="req-h must">Requirements</p><ul class="req must">{% for l in x.r.must.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
@@ -62,7 +70,7 @@
 {% else %}<p class="apps-h">Your application</p><p class="apps-note">Only you, the project lead and admins can see this.</p>{% endif %}
 {% for a, u in x.apps %}
 <div class="app">{{ pic(u, "av") }}<div class="app-main">
-<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{{ facbadge(u) }}{% if not u.is_faculty and u|study %} <small class="muted">{{ u|study }}</small>{% endif %}</span>
+<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{{ facbadge(u) }}{% if not u.is_faculty and u|study %} <small class="muted">{{ u|study }}</small>{% endif %}{% if (is_owner or user.is_admin) and not u.is_faculty and not u.verified %} <span class="pill warn">Not verified yet</span>{% endif %}{% if x.app_cov.get(a.id) %} <span class="pill match">{{ keep(x.app_cov[a.id]) }}</span>{% endif %}</span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Seat filled", "withdrawn": "Withdrawn"}.get(a.status, a.status|capitalize) }}</span></div>
 {{ pro_links(u, compact=True) }}
 {% if a.message %}<p class="app-msg">{{ a.message }}</p>{% else %}<p class="muted app-none">No message.</p>{% endif %}

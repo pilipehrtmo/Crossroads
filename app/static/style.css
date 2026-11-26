@@ -1237,3 +1237,9 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .track .trk-stats{margin-bottom:0}.track .fold.open>.fold-in{padding-top:.4rem}
 .trk-top a{color:var(--ink);text-decoration:none;text-underline-offset:.2em;text-decoration-thickness:1.5px}
 .trk-top a:hover,.trk-top a:focus-visible{text-decoration:underline;color:var(--pri-ink)}
+/* team skills panel and coverage reasons (project page) */
+.gapcard{margin:.4rem 0 1rem;padding:1rem 1.1rem}.gapcard h3{margin:0 0 .2rem;font-size:1rem}
+.gaprow{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin:.45rem 0}.gaplab{font-size:.82rem;color:var(--mut);min-width:9.5rem}
+.tag.gapmiss{background:var(--warn-bg);color:var(--warn-ink)}
+.covwhy{margin:.35rem 0 .2rem;padding-left:1.1rem;color:var(--mut);font-size:.88rem}.covwhy li{margin:.1rem 0}
+@media (max-width:560px){.gaplab{min-width:100%}}

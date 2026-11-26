@@ -36,7 +36,9 @@ CAT_ZH = {"Tech & Data": "科技與資料", "Business": "商業", "Design & Arts
 def _say(key, lang, **kw): return T[key]["zh" if lang == "zh" else "en"].format(**kw)
 
 
-def tags(text): return [t.strip().lower() for t in re.split(r"[,，、;；\n]", text or "") if t.strip()]
+def tags(text):   # canonical skill names: aliases merged, English and Chinese (skills.py)
+    from .skills import tags as _sk
+    return _sk(text)
 
 
 def hit(phrase, text):

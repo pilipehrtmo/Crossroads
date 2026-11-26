@@ -59,6 +59,7 @@ class User(SQLModel, table=True):
     checklist_from: Optional[NaiveDatetime] = None   # practice reset: the Getting started list only counts projects and positions posted after this
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
+    origin: str = "real"   # real / seed (sample content we posted) / demo (presentation accounts): only real counts in impact numbers
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
@@ -119,6 +120,7 @@ class Project(SQLModel, table=True):
     hours_per_week: int = 4
     deadline: str = ""
     status: str = "open"      # open / closed / completed (the lead marked it done; see Contribution)
+    origin: str = "real"      # real / seed / demo, as on User; set from a reviewed id list, never from the title
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[NaiveDatetime] = None
 
@@ -126,7 +128,8 @@ class Role(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(foreign_key="project.id")
     name: str
-    skills: str = ""
+    skills: str = ""          # must-have skills (tags, used for matching)
+    nice_skills: str = ""     # nice-to-have skills (tags): only break ties, never make up for a missing must-have
     filled: bool = False
     advisor: bool = False     # a seat for a professor or mentor; accepted advisors can leave remarks
     about: str = ""           # what this person will do

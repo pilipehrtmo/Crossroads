@@ -20,7 +20,7 @@ from .mail import send_mail, email_enabled
 from .security import hash_password, check_password, password_problem, new_token, token_hash, expires_in
 from .scraper import run_scrapers
 from .seed import seed, seed_starter, seed_examples
-from .matching import match_pct, why, warm
+from .matching import warm, coverage, explain, label as cov_text
 from .cv import parse_cv, CVError, MAX_BYTES
 from . import validate as V
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
@@ -181,7 +181,9 @@ def me(req: Request, s: Session = Depends(get_session)):
         req.session.clear(); return None
     return u
 
-def tags(text: str): return {t.strip().lower() for t in text.split(",") if t.strip()}
+def tags(text: str):   # canonical skill names (aliases merged, English and Chinese), see skills.py
+    from .skills import tags as _sk
+    return set(_sk(text or ""))
 def days_left(d):
     try: return (datetime.strptime(d, "%Y-%m-%d").date() - datetime.utcnow().date()).days
     except (ValueError, TypeError): return None
@@ -487,6 +489,11 @@ def help_page(req: Request, user=Depends(me)): return render(req, "help.html", u
 @app.get("/privacy")
 def privacy(req: Request, user=Depends(me)): return render(req, "privacy.html", user)
 
+@app.get("/impact")
+def impact(req: Request, user=Depends(me), s: Session = Depends(get_session)):
+    from .impact import cached
+    return render(req, "impact.html", user, m=cached(s))
+
 # ---------- profile ----------
 @app.get("/profile")
 def profile(req: Request, user=Depends(me)):
@@ -688,15 +695,17 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         # filtering and sorting happen in the browser (instant, no reload); the page holds every open project
         owner = owners.get(pr.owner_id)
         # no match score on your own project
-        best, reason = None, ""
+        best, reason, cov_label = None, "", None
         if user and user.id != pr.owner_id and user.skills.strip():   # no skills yet: no score (a row of 0% helps nobody)
-            scored = [(match_pct(user, r, pr, owner), r) for r in roles if not r.advisor or user.is_faculty]
-            if scored:
-                best, br = max(scored, key=lambda x: x[0]); reason = f"{br.name}: {why(user, br, best)}"
+            covs = [(coverage(user.skills, r), r) for r in roles if not r.advisor or user.is_faculty]
+            covs = [(c, r) for c, r in covs if c["rank"] is not None]   # seats with no must-have skills make no claim
+            if covs:
+                bc, br = max(covs, key=lambda x: x[0]["rank"]); best = bc["rank"]
+                cov_label = cov_text(bc, lang); reason = f"{br.name}: " + " · ".join(explain(bc, lang))
         fy, fy_why, other = False, [], ""
         if user and user.id != pr.owner_id and pr.id not in touched:
             fy, fy_why, other = FY.project(me_, pr, [r for r in roles if not r.advisor or user.is_faculty], owner, lang)
-        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, total=len(allr), days=days, reason=reason, fy=fy, fy_why=fy_why, other=other))
+        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, cov_label=cov_label, total=len(allr), days=days, reason=reason, fy=fy, fy_why=fy_why, other=other))
     rows.sort(key=lambda r: (not r["fy"], -(r["score"] or 0)))   # "For you" first, then the match score
     soon = {}   # nearest program deadline within 30 days, per project kind
     for prog in s.exec(select(Program).where(Program.active == True)).all():
@@ -728,6 +737,8 @@ def metric_rows(text):   # "12 | stall owners interviewed" -> ("12", "stall owne
     rows = [tuple(x.strip() for x in line.split("|", 1)) for line in text.splitlines() if "|" in line]
     return [(v[:12], l[:60]) for v, l in rows if v and l][:3]
 templates.env.globals["metric_rows"] = metric_rows
+from .skills import tags as _skill_tags
+templates.env.globals["skill_tags"] = _skill_tags
 
 def short_name(name):   # "U-start Innovation & Startup Program" -> "U-start", for small badges
     n = name.split(" (")[0]
@@ -746,7 +757,9 @@ def team_info(s, pr):
         for prog in s.exec(select(Program).where(Program.active == True, Program.for_kind.in_([k, "Any"])).order_by(Program.sort)).all():
             items = guide.readiness(prog, pr, 1 + len(members), students, len(advisors))
             checks.append(dict(p=prog, lines=items, ready=not any(st == "miss" for st, _, _ in items), days=days_left(prog.next_deadline)))
-    return dict(members=members, advisors=advisors, open=[r for r in roles if not r.filled], checks=checks)
+    from .matching import team_gap
+    gap = team_gap([s.get(User, pr.owner_id)] + [u for u, _ in members], [r for r in roles if not r.advisor])
+    return dict(members=members, advisors=advisors, open=[r for r in roles if not r.filled], checks=checks, gap=gap)
 
 def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     kind = kw.get("kind", pr.kind if pr else "")
@@ -760,7 +773,7 @@ def project_form(req, user, s, pr=None, seats=None, error="", **kw):
     return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), dup=kw.get("dup"), uploads_on=uploads_on(), kind=kind, kinds=PROJECT_KINDS, sel=sel,
                   today=datetime.utcnow().date().isoformat(), comps=comps, cgroups=sorted(groups.items(), key=lambda g: (g[0] == "Other", g[0])), clubs=clubs, days_left=days_left)
 
-SEAT_FIELDS = ("name", "skills", "about", "must", "nice", "years", "years_in", "beginner")
+SEAT_FIELDS = ("name", "skills", "nice_skills", "about", "must", "nice", "years", "years_in", "beginner")
 def _lines(v, n=8, w=160): return "\n".join([re.sub(r"\s+", " ", l).strip(" -•*")[:w] for l in str(v or "").splitlines() if l.strip()][:n])
 def clean_seat(d):
     try: years = max(0, min(int(d.get("years") or 0), 20))
@@ -768,7 +781,8 @@ def clean_seat(d):
     try: rid = int(d.get("id") or 0) or None
     except (TypeError, ValueError): rid = None
     return dict(id=rid, adv=bool(d.get("adv")), name=re.sub(r"\s+", " ", str(d.get("name", ""))).strip()[:60],
-                skills=",".join(V.split_skills(str(d.get("skills", "")))), beginner=bool(d.get("beginner")) and not d.get("adv"),
+                skills=",".join(V.split_skills(str(d.get("skills", "")))),
+                nice_skills=",".join(V.split_skills(str(d.get("nice_skills", ""))))[:400], beginner=bool(d.get("beginner")) and not d.get("adv"),
                 about=str(d.get("about", "")).strip()[:600], must=_lines(d.get("must")), nice=_lines(d.get("nice")),
                 years=years, years_in=re.sub(r"\s+", " ", str(d.get("years_in", ""))).strip()[:40] if years else "")
 
@@ -945,18 +959,21 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     pr = s.get(Project, pid)
     if not pr: raise HTTPException(404)
     owner = s.get(User, pr.owner_id); is_owner = bool(user and user.id == owner.id); out = []
+    ti = team_info(s, pr); team_have = ti["gap"]["have"]
     for r in s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)):
         apps = []
         for a in s.exec(select(Application).where(Application.role_id == r.id)):
             # application notes are private: only the project lead, the applicant and admins see them
             if is_owner or (user and (a.user_id == user.id or user.is_admin)): apps.append((a, s.get(User, a.user_id)))
-        pct = match_pct(user, r, pr, owner) if user and user.skills.strip() and not r.filled and not is_owner and not r.advisor else None
+        cov = coverage(user.skills, r, team_have) if user and user.skills.strip() and not r.filled and not is_owner and not r.advisor else None
+        lang = pick_lang(req)
         out.append(dict(r=r, apps=apps, mine=any(u.id == (user.id if user else 0) for _, u in apps),
-                        pct=pct, why=why(user, r, pct) if pct is not None else ""))
+                        cov=cov, cov_label=cov_text(cov, lang) if cov else None, why=explain(cov, lang) if cov else [],
+                        app_cov={a.id: cov_text(coverage(u.skills, r), lang) for a, u in apps if u and not r.advisor and (is_owner or (user and user.is_admin))}))
     reveal = bool(user and any(a.status == "accepted" and u.id == user.id for r in out for a, u in r["apps"]))
     days = days_left(pr.deadline)
     accepting = pr.status == "open" and not (days is not None and days < 0)
-    checks = team_info(s, pr)["checks"]
+    checks = ti["checks"]
     my_adv = bool(user and user.is_faculty and any(x["r"].advisor and a.status == "accepted" and u.id == user.id for x in out for a, u in x["apps"]))
     insider = bool(user and (is_owner or user.is_admin or reveal or my_adv))
     from .advisor import people, supervision, supervised
@@ -968,7 +985,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     from .opps import saved_ids
     talks = s.exec(select(Post).where(Post.project_id == pid, Post.hidden == False).order_by(Post.created.desc()).limit(5)).all() if user else []
     from .reputation import panel
-    return render(req, "project.html", user, comp_panel=panel(s, pr, user), talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    return render(req, "project.html", user, comp_panel=panel(s, pr, user), talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, gap=ti["gap"], reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")

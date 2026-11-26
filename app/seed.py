@@ -62,13 +62,13 @@ def seed_starter():
     """Team account with starter threads and two clearly labelled example projects (removable by admins). Runs once."""
     with Session(engine) as s:
         if s.exec(select(User).where(User.email == "team@matchmaker.local")).first(): return
-        t = User(email="team@matchmaker.local", handle="team-22", name="Team 22", student_id="TEAM22", verified=True,
+        t = User(origin="seed", email="team@matchmaker.local", handle="team-22", name="Team 22", student_id="TEAM22", verified=True,
                  bio="The team that built this site. Our posts are starter prompts, not real users.")
         s.add(t); s.commit(); s.refresh(t)
         for topic, title, body in STARTER: s.add(Post(author_id=t.id, topic=topic, title=title, body=body))
         for title, desc, seats, url in ([] if DEMO_DATA else EXAMPLES):   # demo mode loads demo_data.py instead
             comp = s.exec(select(Competition).where(Competition.url == url)).first() if url else None
-            pr = Project(owner_id=t.id, title=title, description=desc, hours_per_week=5, deadline="2026-11-30", competition_id=comp.id if comp else None, kind="Competition")
+            pr = Project(origin="seed", owner_id=t.id, title=title, description=desc, hours_per_week=5, deadline="2026-11-30", competition_id=comp.id if comp else None, kind="Competition")
             s.add(pr); s.commit(); s.refresh(pr)
             for name, sk in seats: s.add(Role(project_id=pr.id, name=name, skills=sk))
         s.commit()
@@ -87,7 +87,7 @@ def seed_examples():
             if kind == "Competition": continue          # the Hult Prize example already exists
             title = "[Example] " + title
             if s.exec(select(Project).where(Project.title == title)).first(): continue
-            pr = Project(owner_id=t.id, kind=kind, title=title, description=desc, hours_per_week=hours,
+            pr = Project(origin="seed", owner_id=t.id, kind=kind, title=title, description=desc, hours_per_week=hours,
                          deadline=(today + timedelta(days=days)).isoformat())
             s.add(pr); s.commit(); s.refresh(pr)
             for name, sk in seats: s.add(Role(project_id=pr.id, name=name, skills=sk))

@@ -1,0 +1,35 @@
+{% extends "base.html" %}{% block body %}<p class="crumb"><a href="/projects/{{ pr.id }}#seats">← {{ pr.title }}</a></p>
+<h1>Find teammates</h1>
+<p class="muted">For the <b>{{ r.name }}</b> seat. These are verified students who said they are open to join a team, ranked by how many of this seat's must-have skills they already have. Their contact details stay hidden until they accept.</p>
+{% set n = notice %}{% if n == "invited" %}<p class="box ok" role="status">Invitation sent. They get a notification and can accept or decline.</p>
+{% elif n == "withdrawn" %}<p class="box" role="status">Invitation withdrawn.</p>
+{% elif n == "already" %}<p class="err" role="alert">You already invited this person to this seat. Each person can be invited once per seat.</p>
+{% elif n == "applied" %}<p class="err" role="alert">This person already applied for this seat. Answer their application on the project page instead.</p>
+{% elif n == "daylimit" %}<p class="err" role="alert">You reached today's limit of {{ per_day }} invitations. Try again tomorrow.</p>
+{% elif n == "seatlimit" %}<p class="err" role="alert">This seat already has {{ per_seat }} invitations waiting for an answer. Wait for a reply or withdraw one.</p>
+{% elif n == "notverified" %}<p class="err" role="alert">Only verified accounts can send invitations. Finish your verification first.</p>
+{% elif n == "notopen" %}<p class="err" role="alert">This person can't be invited right now.</p>
+{% elif n == "closed" %}<p class="err" role="alert">This seat is not taking new members.</p>{% endif %}
+{% if not ok %}<p class="box">This seat is filled, closed or an advisor seat, so there is no one to find.</p>
+{% else %}
+{% if not can %}<p class="box warn">You can look, but only verified accounts can send invitations. <a href="/verification">Get verified</a>.</p>{% endif %}
+<form class="candf" method="get" action="/roles/{{ r.id }}/candidates">
+<div><label for="cf-col">College</label><select id="cf-col" name="college"><option value="">Any college</option>{% for cid, cname in colleges %}<option value="{{ cid }}" {{ 'selected' if college == cid }}>{{ keep(cname) }}</option>{% endfor %}</select></div>
+<div><label for="cf-deg">Degree</label><select id="cf-deg" name="degree"><option value="">Any degree</option>{% for k, v in degrees.items() %}<option value="{{ k }}" {{ 'selected' if degree == k }}>{{ keep(v.zh if lang == "zh" else v.en) }}</option>{% endfor %}</select></div>
+<label class="chk"><input type="checkbox" name="other" value="1" {{ 'checked' if other }}><span>Only from another college</span></label>
+<button class="sm">Filter</button></form>
+<p class="muted fine">Invitations today: {{ sent }} of {{ per_day }} · waiting on this seat: {{ pend }} of {{ per_seat }}</p>
+{% for x in rows %}{% set u = x.u %}<article class="card cand">
+<div class="cand-top">{{ pic(u, "av") }}<div class="cand-main"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified student" aria-label="Verified">✔</span>{% endif %}
+<small class="muted">{{ u|study }}{% if u.hours %} · {{ u.hours }} h/week{% endif %}</small></div>
+<span class="cand-tags">{% if x.label %}<span class="pill match">{{ keep(x.label) }}</span>{% endif %}{% if x.other %}<span class="pill">Other college</span>{% endif %}</span></div>
+<ul class="covwhy">{% for w in x.why %}<li>{{ keep(w) }}</li>{% endfor %}{% if not x.hours_ok %}<li>Usually gives fewer hours a week than this project asks for</li>{% endif %}</ul>
+{% if x.invited %}<p class="muted">Invitation {{ {"pending": "waiting for an answer", "accepted": "accepted", "declined": "declined", "closed": "closed (the seat was filled)", "withdrawn": "withdrawn"}.get(x.invited.status, x.invited.status) }}.</p>
+{% if x.invited.status == "pending" %}<form method="post" action="/invitations/{{ x.invited.id }}/withdrawn"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Withdraw invitation</button></form>{% endif %}
+{% elif x.applied %}<p class="muted">Already applied for this seat. <a href="/projects/{{ pr.id }}#seat-{{ r.id }}">See the application</a>.</p>
+{% elif can %}<form method="post" action="/roles/{{ r.id }}/invite/{{ u.id }}" class="invf"><input type="hidden" name="csrf" value="{{ csrf }}">
+<label for="im{{ u.id }}">Note (optional)</label><textarea id="im{{ u.id }}" name="message" rows="2" maxlength="400" placeholder="Why you think they'd fit, and what the project needs"></textarea>
+<button class="sm">Invite to this seat</button></form>{% endif %}
+</article>{% else %}<p class="box">No one open to join a team covers this seat's skills yet{% if college or degree or other %} with these filters{% endif %}. Share the project link, or check again later.</p>{% endfor %}
+{% endif %}
+{% endblock %}
