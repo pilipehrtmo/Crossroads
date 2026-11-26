@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% from "_links.html" import pro_links, contact_list %}{% block body %}{% set k = kind_of(pr) %}
-{% if notice == "sent" %}<p class="box ok" role="status">Application sent. You can follow it on your <a href="/activity">Activity</a> page.</p>
+{% if notice == "joined" %}<p class="box ok" role="status">You joined the team. Your contacts are now visible to each other.</p>
+{% elif notice == "sent" %}<p class="box ok" role="status">Application sent. You can follow it on your <a href="/activity">Activity</a> page.</p>
 {% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
 {% elif notice == "short" %}<p class="err" role="alert">Your note is too short: write at least 20 characters about why you fit.</p>
 {% elif notice == "long" %}<p class="err" role="alert">Your note is too long: keep it to 1,000 characters at most.</p>
@@ -66,6 +67,7 @@
 <textarea id="m{{ x.r.id }}" name="message" rows="4" minlength="20" maxlength="1000" data-counter required placeholder="Tell the project leader why you're interested, what relevant experience or skills you have, and how you hope to contribute to the project."></textarea><p><button>Send application</button></p></form></details>
 {% elif not user and not x.r.filled and accepting %}<p class="muted"><a href="/login">Log in</a> or <a href="/signup">sign up</a> to apply.</p>
 {% elif not x.r.filled and not accepting and not is_owner %}<p class="muted">Not taking applications right now.</p>{% endif %}
+{% if (is_owner or (user and user.is_admin)) and not x.r.filled and not x.r.advisor and accepting %}<p class="findt"><a class="btn soft sm" href="/roles/{{ x.r.id }}/candidates">Find teammates for this seat</a>{% if x.inv_pending %} <small class="muted">{{ x.inv_pending }} invitation{{ "s" if x.inv_pending != 1 }} waiting</small>{% endif %}</p>{% endif %}
 {% if x.apps %}<div class="apps">{% if is_owner or user.is_admin %}<p class="apps-h">Applicants <span class="count">{{ x.apps|length }}</span>{% if user.is_admin and not is_owner %}<span class="apps-note">admin view</span>{% endif %}</p>
 {% else %}<p class="apps-h">Your application</p><p class="apps-note">Only you, the project lead and admins can see this.</p>{% endif %}
 {% for a, u in x.apps %}

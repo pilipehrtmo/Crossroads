@@ -10,10 +10,11 @@ Definitions (also printed on the page):
   cross-department    the member's department differs from the lead's (both known)
   cross-college       the member's college differs from the lead's (both linked to an NTHU department)
   cross-university    the member's current institution differs from the lead's (only once affiliations exist)
+  invitation accepted a real person accepted a lead's invitation (Find teammates) on a real project
 """
 import time
 from sqlmodel import Session, select
-from .models import User, Project, Role, Application
+from .models import User, Project, Role, Application, Invitation
 from . import departments as DEP
 
 REAL = "real"
@@ -45,8 +46,10 @@ def counts(s: Session, institution_of=None) -> dict:
             il, im = institution_of(lead), institution_of(m)
             if il and im and il != im: cross_uni += 1
     people = [u for u in users.values() if real_person(u)]
+    invites_accepted = sum(1 for i in s.exec(select(Invitation).where(Invitation.status == "accepted")).all()
+                           if real_project(projects.get(i.project_id)) and real_person(users.get(i.user_id)))
     return dict(
-        teams=len(teams), collaborations=collab, advisors=advisors, cross_department=cross_dept, cross_college=cross_col,
+        teams=len(teams), invitations_accepted=invites_accepted, collaborations=collab, advisors=advisors, cross_department=cross_dept, cross_college=cross_col,
         cross_university=cross_uni if institution_of else None,
         people=len(people), verified=sum(1 for u in people if u.verified or u.is_faculty),
         projects=sum(1 for p in projects.values() if real_project(p)),

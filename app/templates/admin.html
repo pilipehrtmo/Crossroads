@@ -10,7 +10,7 @@
 <section class="sec" id="reports"><h2>Reports <span class="count">{{ stats.reports }}</span></h2>
 {% for r in reports %}<div class="card" style="margin:.6rem 0"><div class="meta"><span class="pill">{{ r.kind }}</span><span>Reason: {{ r.reason }}</span></div>
 {% if r.kind != "user" %}<p style="margin:.2rem 0 .7rem">"{{ info[r.id] }}"</p>{% endif %}
-<div class="acts">{% if r.kind != "user" %}<form method="post" action="/admin/restore/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Keep (unhide)</button></form><form method="post" action="/admin/remove/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove content</button></form>{% endif %}
+<div class="acts">{% if r.kind in ("post", "comment") %}<form method="post" action="/admin/restore/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ">Keep (unhide)</button></form><form method="post" action="/admin/remove/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Remove content</button></form>{% endif %}
 {% if r.target_user_id not in admin_ids %}<form method="post" action="/admin/ban/{{ r.target_user_id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm no">Ban author</button></form>{% endif %}<form method="post" action="/admin/resolve/{{ r.id }}"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Dismiss</button></form></div></div>
 {% else %}<p class="muted">No open reports.</p>{% endfor %}</section>
 

@@ -53,7 +53,8 @@ def csrf(c, path="/activity"): return re.search(r'name="csrf" value="([^"]+)"', 
 def test_only_verified_opted_in_real_people_are_listed(world):
     c, _ = login("lead@x.tw")
     html = c.get(f"/roles/{world['r']}/candidates").text
-    assert "Arif" in html and "Quiet" not in html and "Pend" not in html and "Demo" not in html
+    assert 'href="/u/arif"' in html
+    assert 'href="/u/quiet"' not in html and 'href="/u/pend"' not in html and 'href="/u/demo"' not in html
     assert "Covers 2 of 2 must-have skills: figma, ui design" in html
 
 
@@ -108,7 +109,7 @@ def test_blocked_user_is_hidden_and_cannot_be_invited(world):
     a, _ = login("arif@x.tw"); ta = csrf(a)
     a.post(f"/block/{world['lead']}", data=dict(csrf=ta))
     c, _ = login("lead@x.tw"); t = csrf(c)
-    assert "Arif" not in c.get(f"/roles/{world['r']}/candidates").text
+    assert 'href="/u/arif"' not in c.get(f"/roles/{world['r']}/candidates").text
     c.post(f"/roles/{world['r']}/invite/{world['arif']}", data=dict(csrf=t))
     with Session(engine) as s: assert s.exec(select(Invitation)).first() is None
 
@@ -145,7 +146,7 @@ def test_invitation_loses_cleanly_when_an_application_filled_the_seat(world):
 def test_report_invitation_creates_report_and_declines(world):
     c, _ = login("lead@x.tw"); c.post(f"/roles/{world['r']}/invite/{world['arif']}", data=dict(csrf=csrf(c)))
     with Session(engine) as s: iid = s.exec(select(Invitation)).first().id
-    a, _ = login("arif@x.tw"); a.post(f"/invitations/{iid}/report", data=dict(csrf=csrf(a), reason="spam"))
+    a, _ = login("arif@x.tw"); a.post(f"/report-invitation/{iid}", data=dict(csrf=csrf(a), reason="spam"))
     with Session(engine) as s:
         assert s.get(Invitation, iid).status == "declined"
         rep = s.exec(select(Report)).first(); assert rep.kind == "invitation" and rep.target_user_id == world["lead"]

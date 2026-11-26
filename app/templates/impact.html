@@ -5,12 +5,14 @@
 <div class="stat"><b>{{ m.collaborations }}</b><span>Members accepted onto a team</span></div>
 <div class="stat"><b>{{ m.cross_department }}</b><span>From another department</span></div>
 <div class="stat"><b>{{ m.cross_college }}</b><span>From another college</span></div>
+<div class="stat"><b>{{ m.invitations_accepted }}</b><span>Joined through an invitation</span></div>
 {% if m.cross_university is not none %}<div class="stat"><b>{{ m.cross_university }}</b><span>From another university</span></div>{% endif %}
 </div>
 <div class="box"><h3>How each number is counted</h3><ul>
 <li><b>Teams formed:</b> real projects with at least one accepted member who is not the lead.</li>
 <li><b>Members accepted onto a team:</b> each accepted member counts once per project. Advisor seats are not included ({{ m.advisors }} advisors accepted).</li>
 <li><b>From another department / college:</b> the member's department or college is different from the lead's. Members without a department are not counted either way.</li>
+<li><b>Joined through an invitation:</b> a lead found them with Find teammates and they accepted.</li>
 <li>{{ m.people }} real accounts, {{ m.verified }} of them verified; {{ m.projects }} real projects.</li></ul></div>
 <div class="box"><h3>Left out</h3><p class="muted">{{ m.excluded.projects }} sample or demo projects, {{ m.excluded.people }} sample or demo accounts and {{ m.excluded.collaborations }} accepted members on them. Admin and banned accounts are never counted.</p></div>
 <p class="muted fine">Numbers refresh every 10 minutes.</p>

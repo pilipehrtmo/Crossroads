@@ -168,7 +168,7 @@ def decide_invitation(iid: int, decision: str, user=Depends(me), s: Session = De
     return go(f"/projects/{pr.id}?n=joined")
 
 
-@app.post("/invitations/{iid}/report", dependencies=[limited("flag", 30, 3600)])
+@app.post("/report-invitation/{iid}", dependencies=[limited("flag", 30, 3600)])
 def report_invitation(iid: int, reason: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     inv = s.get(Invitation, iid)

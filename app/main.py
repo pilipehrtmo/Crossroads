@@ -542,6 +542,7 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
         return render(req, "profile.html", user, error=errs[0], errors=errs, dform=dict(sel=dept_sel, track=dept_track, other=dept_other))
     for f, v in handles.items(): setattr(user, f, v)
     for f, v in links.items(): setattr(user, f, v)
+    if user.role != "faculty": user.open_to_join = form.get("open_to_join") == "1"   # listed in Find teammates (only once verified)
     if name != user.name: user.handle = slugify(s, name, user.id)   # the web address follows the name
     user.name, user.bio, user.contact = name, bio, clean_contact(contact, 100)
     if user.role == "faculty":
@@ -669,7 +670,8 @@ def public_profile(req: Request, handle: str, reported: str = "", user=Depends(m
             st = opening_state(s, o)
             if st["taking"]: openings.append(dict(o=o, **st))
     from .reputation import record
-    return render(req, "public.html", user, p=p, track=record(s, p) if not p.is_admin else None, interests=[t for t in p.interests.split(",") if t.strip()], roles_wanted=[t for t in p.roles_wanted.split(",") if t.strip()], skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects, openings=openings,
+    blocked_by_me = bool(user) and s.exec(select(Block.id).where(Block.blocker_id == user.id, Block.blocked_id == p.id)).first() is not None
+    return render(req, "public.html", user, blocked_by_me=blocked_by_me, p=p, track=record(s, p) if not p.is_admin else None, interests=[t for t in p.interests.split(",") if t.strip()], roles_wanted=[t for t in p.roles_wanted.split(",") if t.strip()], skills=sorted(tags(p.skills)), reported=bool(reported), projects=projects, openings=openings,
                   research=[t.strip() for t in p.research.split(",") if t.strip()])
 
 # ---------- board ----------
@@ -969,7 +971,8 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
         lang = pick_lang(req)
         out.append(dict(r=r, apps=apps, mine=any(u.id == (user.id if user else 0) for _, u in apps),
                         cov=cov, cov_label=cov_text(cov, lang) if cov else None, why=explain(cov, lang) if cov else [],
-                        app_cov={a.id: cov_text(coverage(u.skills, r), lang) for a, u in apps if u and not r.advisor and (is_owner or (user and user.is_admin))}))
+                        app_cov={a.id: cov_text(coverage(u.skills, r), lang) for a, u in apps if u and not r.advisor and (is_owner or (user and user.is_admin))},
+                        inv_pending=len(s.exec(select(Invitation.id).where(Invitation.role_id == r.id, Invitation.status == "pending")).all()) if is_owner else 0))
     reveal = bool(user and any(a.status == "accepted" and u.id == user.id for r in out for a, u in r["apps"]))
     days = days_left(pr.deadline)
     accepting = pr.status == "open" and not (days is not None and days < 0)
@@ -1028,6 +1031,8 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     if r.filled or pr.status != "open" or (d is not None and d < 0): return go(f"/projects/{pr.id}?n=closed")
     if pr.owner_id == user.id: return go(f"/projects/{pr.id}")
     if r.advisor and not user.is_faculty: return go(f"/projects/{pr.id}?n=facultyonly")
+    from .invites import blocked
+    if blocked(s, pr.owner_id, user.id): return go(f"/projects/{pr.id}?n=closed")
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
     if dup and dup.status not in ("withdrawn",): return go(f"/projects/{pr.id}?n=sent")   # already applied: no duplicate application or notification
     message = V.normalize_text(message)
@@ -1100,7 +1105,8 @@ def activity(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     fbp = {p.id: p for p in s.exec(select(Project).where(Project.id.in_({t.project_id for t in fb} or {-1})))}
     from .opps import saved_for
     feed = s.exec(select(Notification).where(Notification.user_id == user.id).order_by(Notification.created.desc()).limit(8)).all()
-    return render(req, "activity.html", user, feed=feed, saved=saved_for(s, user), mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
+    from .invites import for_activity
+    return render(req, "activity.html", user, inv=for_activity(s, user), feed=feed, saved=saved_for(s, user), mine=mine, pend=pend, seats=seats, sent=sent, days_left=days_left, oapps=oapps, profs=profs, fb=fb, fbp=fbp)
 
 # /funding lives in opps.py (programs + competitions, saved items, tracking)
 
@@ -1242,6 +1248,9 @@ def extra_admin(s):
     for r in reps:
         if r.kind == "post": p = s.get(Post, r.target_id); info[r.id] = f"{p.title}: {p.body}"[:200] if p else "[gone]"
         elif r.kind == "comment": c = s.get(Comment, r.target_id); info[r.id] = c.body[:200] if c else "[gone]"
+        elif r.kind == "invitation":
+            i = s.get(Invitation, r.target_id); pr_ = s.get(Project, i.project_id) if i else None
+            info[r.id] = (f"Invitation to {pr_.title if pr_ else '?'}: {i.message or '(no note)'}")[:200] if i else "[gone]"
         else: info[r.id] = ""
     allu = s.exec(select(User)).all()
     stats = dict(users=len(allu), unverified=sum(1 for u in allu if not u.verified and not u.banned and not u.is_admin), reports=len(reps),
@@ -1380,4 +1389,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
-from . import notify, docs, opps, profverify, tour, onboard, whatsnew, reputation   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
+from . import notify, docs, opps, profverify, tour, onboard, whatsnew, reputation, invites   # notifications, research documents, competitions and saved items (after advisor: they use its rules)

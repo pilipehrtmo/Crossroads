@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import NaiveDatetime
-from sqlalchemy import Column, LargeBinary, Text, UniqueConstraint
+from sqlalchemy import Column, LargeBinary, Text, UniqueConstraint, text
 from sqlmodel import SQLModel, Field
 
 class User(SQLModel, table=True):
@@ -59,6 +59,7 @@ class User(SQLModel, table=True):
     checklist_from: Optional[NaiveDatetime] = None   # practice reset: the Getting started list only counts projects and positions posted after this
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
+    open_to_join: bool = Field(default=False, sa_column_kwargs={"server_default": text("false")})   # listed in Find teammates (verified students only)
     origin: str = Field(default="real", sa_column_kwargs={"server_default": "real"})   # real / seed (sample content we posted) / demo (presentation accounts): only real counts in impact numbers
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
@@ -410,3 +411,23 @@ class Endorsement(SQLModel, table=True):   # a teammate vouches for one strength
     to_id: int = Field(foreign_key="user.id", index=True)
     tag: str                   # "q:reliable" (a fixed quality) or "s:python" (a skill from their seat)
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+
+class Invitation(SQLModel, table=True):   # a project lead invites a student to one open seat (see invites.py)
+    __table_args__ = (UniqueConstraint("role_id", "user_id", name="uq_invitation_seat_person"),)   # once per person per seat, ever
+    id: Optional[int] = Field(default=None, primary_key=True)
+    role_id: int = Field(foreign_key="role.id", index=True)
+    project_id: int = Field(foreign_key="project.id", index=True)
+    user_id: int = Field(foreign_key="user.id", index=True)     # who is invited
+    from_id: int = Field(foreign_key="user.id", index=True)     # who invited (the lead or an admin)
+    message: str = ""
+    status: str = "pending"    # pending / accepted / declined / closed (seat filled or project closed) / withdrawn
+    at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+    decided_at: Optional[NaiveDatetime] = None
+
+class Block(SQLModel, table=True):   # blocker never sees invitations, applications or candidates involving blocked (both ways)
+    __table_args__ = (UniqueConstraint("blocker_id", "blocked_id", name="uq_block_pair"),)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    blocker_id: int = Field(foreign_key="user.id", index=True)
+    blocked_id: int = Field(foreign_key="user.id", index=True)
+    at: NaiveDatetime = Field(default_factory=datetime.utcnow)
