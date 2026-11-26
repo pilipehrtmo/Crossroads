@@ -35,7 +35,7 @@ with sync_playwright() as p:
             ok(fy.count() >= 1 and fy.first.inner_text().strip() in ("For you", "為你推薦"), f"{tag} home: For you tag on cards ({fy.count()})")
             first = pg.locator("#plist .pcard:not([hidden])").first
             ok(first.get_attribute("data-fy") == "1", f"{tag} home: For you card is first")
-            fy.first.evaluate("e=>e.scrollIntoView({block:'center'})"); pg.wait_for_timeout(100); (fy.first.click() if vp != "desk" else fy.first.hover()); pg.wait_for_timeout(400); url0 = pg.url; pg.wait_for_timeout(150)
+            fy.first.evaluate("e=>e.scrollIntoView({block:'center'})"); pg.wait_for_timeout(700); (fy.first.click() if vp != "desk" else (lambda b: pg.mouse.move(b["x"] + b["width"] / 2, b["y"] + b["height"] / 2))(fy.first.bounding_box())); pg.wait_for_timeout(400); url0 = pg.url; pg.wait_for_timeout(150)   # desk: a real mouse move, since hover() re-targets while the card tilts
             why = pg.locator("#plist .fytag").first.locator(".fywhy")
             ok(why.is_visible() and len(why.inner_text()) > 10, f"{tag} home: hovering the tag shows why")
             bb, cb = why.bounding_box(), pg.locator("#plist .pcard").first.bounding_box()
@@ -85,7 +85,8 @@ with sync_playwright() as p:
         ctx, pg = page(olly, lang, vp); pg.goto(B + f"/projects/{p5}#complete"); clean(pg)
         box = pg.locator(".cask"); ok(box.is_visible() and "負責人記錄你的角色是" in box.inner_text(), "member sees the confirmation question in Chinese")
         box.scroll_into_view_if_needed(); pg.screenshot(path=f"{OUT}/zh_phone_member_confirm.png")
-        box.locator("button").first.click(); pg.wait_for_load_state()
+        with pg.expect_navigation(): box.locator("button").first.click()
+        pg.wait_for_load_state()
         ok(q(f"select member_status from contribution where project_id={p5} and user_id={uid(olly)}") == "confirmed", "member confirms through the page")
         ok(pg.locator(".eform").count() == 1, "endorse form for the lead appears")
         pg.locator(".eform .etag").nth(0).click(); pg.locator(".eform .etag").nth(1).click(); pg.locator(".eform .etag").nth(2).click()
