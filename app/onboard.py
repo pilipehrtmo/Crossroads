@@ -21,6 +21,8 @@ def items_for(s, u):
             dict(key="skills", label="Add your skills", desc="So every seat can show your match %.", done=bool(u.skills.strip()), href="/profile#s", tour="student:skills"),
             dict(key="dept", label="Add your department or major", desc="Teams use it to find people from other departments.", done=bool((u.faculty or "").strip()), href="/profile#f", tour=""),
             dict(key="act", label="Apply for a seat, or post your own project", desc="Open a project and press Apply for this seat, or post a project and list the seats you need.", done=applied or posted, href="/#plist", tour="student:pick"),
+            dict(key="verified", label="Get your Verified student badge", desc="Send one official document (student ID card or enrollment certificate). Needed to publish projects and to be found by teams.",
+                 done=bool(u.verified), href="/verify-student", tour=""),
             dict(key="joined", label="Get accepted, or accept someone", desc="The bell lights up when there is news. Contacts appear only after acceptance.", done=joined, href="/activity", tour=""),
         ]
     from .models import Opening, OpeningApp

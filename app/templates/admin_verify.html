@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block body %}<p class="crumb"><a href="/admin">← Admin</a></p><h1>Student verification</h1>
+<p class="muted">Check that the document shows the student's name, university and student ID, and that they study there now when the document has a date. Compare the name and student ID with their account. Every time you open a document it is logged.</p>
+{% if notice == "reason" %}<p class="err" role="alert">Write a short reason (at least 5 characters). The student sees it, so explain what to fix.</p>{% elif notice == "done" %}<p class="box ok" role="status">Saved. The student was notified.</p>{% endif %}
+<h2>Waiting <span class="count">{{ waiting|length }}</span></h2>
+{% for r in waiting %}{% set u = people.get(r.user_id) %}<article class="card vreq">
+<div class="app-top"><span class="app-who">{% if u %}<a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a> <small class="muted">{{ u.email }} · student ID {{ u.student_id or "—" }}{% if u|study %} · {{ u|study }}{% endif %}</small>{% endif %}</span><span class="badge">{{ types.get(r.doc_type, r.doc_type) }}</span></div>
+<p class="muted fine">Sent {{ r.submitted_at|ago }} · {{ (r.size / 1024)|round|int }} KB</p>
+<p><a class="btn soft sm" href="/admin/verification/{{ r.id }}/file" target="_blank" rel="noopener noreferrer">Open document</a></p>
+<div class="acts"><form method="post" action="/admin/verification/{{ r.id }}/approve"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Approve</button></form></div>
+<form method="post" action="/admin/verification/{{ r.id }}/action_required" class="vdec"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="ar{{ r.id }}">Ask for a clearer document</label><input id="ar{{ r.id }}" name="reason" maxlength="300" placeholder="e.g. The student ID number is cut off. Please send the whole card."><button class="sm ghost">Ask again</button></form>
+<form method="post" action="/admin/verification/{{ r.id }}/reject" class="vdec"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="rj{{ r.id }}">Reject</label><input id="rj{{ r.id }}" name="reason" maxlength="300" placeholder="e.g. This is not an official university document."><button class="sm no">Reject</button></form>
+</article>{% else %}<p class="card muted">Nothing waiting.</p>{% endfor %}
+<h2>Recent decisions</h2>
+<div class="tblwrap"><table class="tbl"><tr><th>Student</th><th>Document</th><th>Decision</th><th>When</th><th>File</th><th></th></tr>
+{% for r in recent %}{% set u = people.get(r.user_id) %}<tr><td>{% if u %}<a href="/u/{{ u.handle }}">{{ u|dn }}</a>{% endif %}</td><td>{{ types.get(r.doc_type, r.doc_type) }}</td><td>{{ {"verified": "Approved", "action_required": "Clearer copy asked", "rejected": "Rejected", "revoked": "Withdrawn"}.get(r.state, r.state) }}{% if r.reason %}<br><small class="muted">{{ r.reason }}</small>{% endif %}</td><td>{{ r.decided_at|ago if r.decided_at else "" }}</td>
+<td>{% if r.deleted_at %}Deleted{% elif r.delete_after %}Deleted after {{ r.delete_after.strftime("%Y-%m-%d") }}{% endif %}</td>
+<td>{% if r.state == "verified" and u and u.student_status == "verified" %}<details><summary>Withdraw badge</summary><form method="post" action="/admin/verification/{{ r.id }}/revoke"><input type="hidden" name="csrf" value="{{ csrf }}"><input name="reason" maxlength="300" placeholder="Reason the student will see" aria-label="Reason"><button class="sm no">Withdraw</button></form></details>{% endif %}</td></tr>
+{% else %}<tr><td colspan="6" class="muted">No decisions yet.</td></tr>{% endfor %}</table></div>
+{% if legacy_n %}<p class="muted fine">{{ legacy_n }} student{{ "s" if legacy_n != 1 }} kept a badge an admin gave before document checks. Their badges stay until you withdraw one on the Users list or ask them to upload a document.</p>{% endif %}
+{% endblock %}

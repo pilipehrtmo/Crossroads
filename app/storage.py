@@ -16,7 +16,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 STORAGE_BUCKET = os.getenv("STORAGE_BUCKET", "research-docs")
 LOCAL_DIR = os.getenv("LOCAL_STORAGE_DIR", "var/uploads")
-SAFE_KEY = re.compile(r"^research/\d+/\d+/v\d+-[0-9a-f]{16}\.[a-z]{2,4}$")
+SAFE_KEY = re.compile(r"^(research/\d+/\d+/v\d+-[0-9a-f]{16}\.[a-z]{2,4}|verify/\d+/[0-9a-f]{32}\.(?:jpg|png|pdf))$")
+VERIFY_BUCKET = os.getenv("VERIFY_BUCKET", "verification-docs")   # student proof documents: a SEPARATE private bucket
 
 
 class StorageError(Exception): pass
@@ -78,3 +79,17 @@ def backend():
 
 def set_backend(b):   # tests
     global _backend; _backend = b
+
+
+_vbackend = None
+def verify_backend():
+    """Storage for student verification documents: its own private bucket (never the research one), same rules:
+    reached only from this server, never linked from a page. None when it is not configured on the public site."""
+    global _vbackend
+    if _vbackend is None:
+        if SUPABASE_URL and SUPABASE_SERVICE_KEY: _vbackend = SupabaseStorage(bucket=VERIFY_BUCKET)
+        elif not PUBLIC: _vbackend = LocalStorage(os.path.join(LOCAL_DIR, "private-verify"))
+    return _vbackend
+
+def set_verify_backend(b):   # tests
+    global _vbackend; _vbackend = b

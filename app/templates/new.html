@@ -1,4 +1,4 @@
-{% extends "base.html" %}{% block body %}{% set editing = pr and pr.id %}
+{% extends "base.html" %}{% block body %}{% if not pr and not can_publish(user) %}<p class="box warn" role="status">You can fill in this form, but publishing needs a verified account. <a href="/verify-student">Send your student verification document</a>; until it is approved you can still apply for up to 3 seats.</p>{% endif %}{% set editing = pr and pr.id %}
 <h1>{{ "Edit project" if editing else "Post a project" }}</h1>
 {% if not editing %}<p class="muted">A competition team, a startup, a research project or something you are building for fun. Describe it, then list the seats you need to fill.</p>{% endif %}
 {% if error %}<p class="err" role="alert">{{ error }}{% if dup %} <a href="/projects/{{ dup.id }}">Open {{ dup.title }}</a>{% endif %}</p>{% endif %}

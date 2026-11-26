@@ -1,5 +1,6 @@
 {% extends "base.html" %}{% from "_links.html" import pro_links, contact_list %}{% block body %}{% set k = kind_of(pr) %}
 {% if notice == "joined" %}<p class="box ok" role="status">You joined the team. Your contacts are now visible to each other.</p>
+{% elif notice == "limit3" %}<p class="err" role="alert">You already have 3 applications waiting for an answer. Until your student verification is approved, you can have at most 3 at a time. <a href="/verify-student">Get verified</a> or wait for a reply.</p>
 {% elif notice == "sent" %}<p class="box ok" role="status">Application sent. You can follow it on your <a href="/activity">Activity</a> page.</p>
 {% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
 {% elif notice == "short" %}<p class="err" role="alert">Your note is too short: write at least 20 characters about why you fit.</p>

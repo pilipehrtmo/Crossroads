@@ -86,6 +86,8 @@ async def lifespan(app):
     sch.add_job(send_deadline_reminders, "cron", hour=0, minute=2)
     from . import fundscan   # opens every funding program's official page: daily at 09:00 Taiwan time, and once soon after start
     sch.add_job(fundscan.run, "cron", hour=1, minute=0)
+    from .studentverify import daily as verify_daily
+    sch.add_job(verify_daily, "cron", hour=3, minute=11)   # delete verification documents past retention; expire old badges
     sch.add_job(fundscan.run, "date", run_date=datetime.now() + timedelta(minutes=2))   # set KEEP_AWAKE=0 on Render to let it sleep again
     sch.start()
     yield
@@ -882,6 +884,11 @@ def read_project_form(form, pr=None, stored_seats=None):
     out["links"] = json.dumps(parse_links(str(form.get("links_json", ""))), ensure_ascii=False)
     return out, seats, err
 
+def can_publish(u) -> bool:
+    """Verified students, professors and admins publish projects; students waiting for verification can only apply."""
+    return bool(u) and (u.is_admin or u.role == "faculty" or bool(u.verified))
+templates.env.globals["can_publish"] = can_publish
+
 @app.get("/projects/new")
 def new_project(req: Request, comp: str = "", kind: str = "", user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
@@ -894,6 +901,7 @@ async def create_project(req: Request, user=Depends(me), s: Session = Depends(ge
     form = await req.form()
     f, seats, err = read_project_form(form)
     if not seats and not err: err = "Add at least one open seat, so people know who you need."
+    if not can_publish(user): err = "Publishing a project needs a verified account. Send your student verification document first; you can apply for seats meanwhile."
     if err:
         draft = Project(owner_id=user.id, **f)
         return project_form(req, user, s, pr=draft, seats=seats, error=err, kind=f["kind"], sel=str(form.get("competition_id", "")) if f["kind"] == "Competition" else "")
@@ -1035,6 +1043,9 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     if blocked(s, pr.owner_id, user.id): return go(f"/projects/{pr.id}?n=closed")
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
     if dup and dup.status not in ("withdrawn",): return go(f"/projects/{pr.id}?n=sent")   # already applied: no duplicate application or notification
+    if not user.verified and not user.is_faculty and not user.is_admin:   # not verified yet: at most 3 open applications at a time
+        if len(s.exec(select(Application.id).where(Application.user_id == user.id, Application.status == "pending")).all()) >= 3:
+            return go(f"/projects/{pr.id}?n=limit3#seat-{rid}")
     message = V.normalize_text(message)
     if len(message) < V.NOTE_MIN: return go(f"/projects/{pr.id}?n=short#seat-{rid}")
     if len(message) > V.NOTE_MAX: return go(f"/projects/{pr.id}?n=long#seat-{rid}")
@@ -1285,7 +1296,9 @@ def admin_dept(req: Request, uid: int, choice: str = Form(""), action: str = For
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
     from .reputation import admin_queue
-    return render(req, "admin.html", user, trackq=admin_queue(s), users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
+    from .models import StudentVerification
+    vwaiting = len(s.exec(select(StudentVerification.id).where(StudentVerification.state == "needs_review")).all())
+    return render(req, "admin.html", user, vwaiting=vwaiting, trackq=admin_queue(s), users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
         profq=profverify.queue(s, req.query_params.get("profs", "open")), profs_all=req.query_params.get("profs") == "all",
         deptq=s.exec(select(User).where(User.dept_status.in_(DEP.REVIEW_STATES)).order_by(User.id)).all(), dflash=req.session.pop("dflash", None),
         perr=req.query_params.get("perr", ""), names_by_id={u.id: u.name or u.handle for u in s.exec(select(User).where(User.is_admin == True)).all()}, programs=s.exec(select(Program).order_by(Program.sort)).all(),
@@ -1353,8 +1366,8 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     elif action == "unban":
         u = s.get(User, oid)
         if u: u.banned = False
-    elif action == "verify_all":
-        for u in s.exec(select(User).where(User.verified == False, User.banned == False)).all(): u.verified = True
+    elif action in ("verify_all", "verify"):
+        return go("/admin/verification")   # student badges now need an approved document (studentverify.py)
     elif action == "approve_all":
         for c in s.exec(select(Competition).where(Competition.needs_review == True)).all(): c.needs_review = False
     elif action in ("approve", "reject", "resolve", "verify"):
@@ -1389,4 +1402,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
     s.commit(); return go("/admin")
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
-from . import notify, docs, opps, profverify, tour, onboard, whatsnew, reputation, invites   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
+from . import notify, docs, opps, profverify, tour, onboard, whatsnew, reputation, invites, studentverify   # notifications, research documents, competitions and saved items (after advisor: they use its rules)

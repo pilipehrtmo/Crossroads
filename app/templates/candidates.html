@@ -12,7 +12,7 @@
 {% elif n == "closed" %}<p class="err" role="alert">This seat is not taking new members.</p>{% endif %}
 {% if not ok %}<p class="box">This seat is filled, closed or an advisor seat, so there is no one to find.</p>
 {% else %}
-{% if not can %}<p class="box warn">You can look, but only verified accounts can send invitations. <a href="/verification">Get verified</a>.</p>{% endif %}
+{% if not can %}<p class="box warn">You can look, but only verified accounts can send invitations. <a href="{{ '/verify-student' if is_student(user) else '/verification' }}">Get verified</a>.</p>{% endif %}
 <form class="candf" method="get" action="/roles/{{ r.id }}/candidates">
 <div><label for="cf-col">College</label><select id="cf-col" name="college"><option value="">Any college</option>{% for cid, cname in colleges %}<option value="{{ cid }}" {{ 'selected' if college == cid }}>{{ keep(cname) }}</option>{% endfor %}</select></div>
 <div><label for="cf-deg">Degree</label><select id="cf-deg" name="degree"><option value="">Any degree</option>{% for k, v in degrees.items() %}<option value="{{ k }}" {{ 'selected' if degree == k }}>{{ keep(v.zh if lang == "zh" else v.en) }}</option>{% endfor %}</select></div>

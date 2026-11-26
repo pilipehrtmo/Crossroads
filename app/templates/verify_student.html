@@ -1,0 +1,32 @@
+{% extends "base.html" %}{% block body %}<h1>Student verification</h1>
+<p class="muted">A Verified student badge tells project leads and professors you really study here. You get it after an admin checks one official document. Until then you can still apply for up to 3 seats at a time, but you can't publish projects or send invitations.</p>
+{% if notice == "sent" %}<p class="box ok" role="status">Document received. An admin will review it, usually within two days, and you'll get a notification.</p>{% endif %}
+{% set e = err %}{% if e == "type" %}<p class="err" role="alert">Choose what kind of document you're sending.</p>
+{% elif e == "consent" %}<p class="err" role="alert">Tick the box to confirm you agree to the review and deletion rules below.</p>
+{% elif e == "off" %}<p class="err" role="alert">Document upload is not available right now. Please try again later.</p>
+{% elif e == "store" %}<p class="err" role="alert">The upload did not go through. Please try again.</p>
+{% elif e == "file" %}<p class="err" role="alert">{{ request.query_params.get("m", "That file can't be used.")[:200]|tr }}</p>{% endif %}
+<div class="card vstate vs-{{ st }}"><p class="req-h">Your status</p>
+{% if st == "verified" %}<p><b>✔ Verified student</b>{% if legacy %} <span class="muted">(verified by an admin before document checks)</span>{% endif %}</p>{% if user.verify_expires_at %}<p class="muted fine">Valid until {{ user.verify_expires_at.strftime("%Y-%m-%d") }}. You'll be asked for a current document after that.</p>{% endif %}
+{% elif st == "needs_review" %}<p><b>Waiting for review</b></p><p class="muted fine">An admin will look at your document soon. You don't need to do anything.</p>
+{% elif st == "action_required" %}<p><b>Please send a clearer document</b></p>{% set last = reqs[0] if reqs else none %}{% if last and last.reason %}<p class="box warn">{{ last.reason }}</p>{% endif %}
+{% elif st == "rejected" %}<p><b>Not approved</b></p>{% set last = reqs[0] if reqs else none %}{% if last and last.reason %}<p class="box warn">{{ last.reason }}</p>{% endif %}<p class="muted fine">You can send a different document below.</p>
+{% elif st == "expired" %}<p><b>Expired</b></p><p class="muted fine">A new academic year started. Upload a current document to get the badge back.</p>
+{% elif st == "revoked" %}<p><b>Badge withdrawn</b></p><p class="muted fine">An admin withdrew your badge. If you think this is a mistake, contact the admins from their profile page.</p>
+{% else %}<p><b>Not verified yet</b></p>{% endif %}</div>
+{% if not is_student(user) %}<p class="box">Professor and researcher accounts are verified on the <a href="/verification">professor verification page</a> instead.</p>
+{% elif can_upload %}
+<form method="post" action="/verify-student/upload" enctype="multipart/form-data" class="card vform"><input type="hidden" name="csrf" value="{{ csrf }}">
+<h2>Send one document</h2>
+<label for="dt">What are you sending?</label><select id="dt" name="doc_type" required><option value="">Choose…</option>{% for k, v in types.items() %}<option value="{{ k }}">{{ v|tr }}</option>{% endfor %}</select>
+<div class="box"><p class="req-h">It must show</p><ul><li>Your name</li><li>Your university</li><li>Your student ID number</li><li>That you study there now (a current semester or date), if the document has one</li></ul>
+<p class="muted fine">You may cover anything else, such as your photo, birthday, national ID number or address. Never send passwords, a passport or a national ID card.</p></div>
+<label for="vf">File (JPEG, PNG or PDF, up to 5 MB)</label><input id="vf" type="file" name="file" accept="image/jpeg,image/png,application/pdf" required>
+<label class="chk"><input type="checkbox" name="consent" value="1" required><span>I agree that admins may view this document only to verify me, and that the file is deleted 14 days after approval or 30 days after a rejection. Only the decision and the document type are kept.</span></label>
+<p class="formacts"><button>Send for review</button></p></form>
+{% elif not stored %}<p class="box">Document upload is not set up on this server yet.</p>{% endif %}
+<div class="box"><h3>How your document is handled</h3><ul><li>It is stored in private storage that no web page links to. Only site admins can open it, and every time they do is logged.</li>
+<li>It is used only to check that you study here, never shown on your profile or to other students.</li>
+<li>The file is deleted 14 days after approval or 30 days after a rejection. We keep only the decision, the date and what kind of document it was.</li></ul></div>
+{% if reqs %}<h2>History</h2><div class="dlist">{% for r in reqs %}<div class="drow"><span class="dmain"><b>{{ types.get(r.doc_type, r.doc_type)|tr }}</b><small class="muted">sent {{ r.submitted_at|ago }}{% if r.deleted_at %} · file deleted{% endif %}</small></span><span class="badge">{{ {"needs_review": "Waiting", "verified": "Approved", "action_required": "Clearer copy asked", "rejected": "Not approved", "revoked": "Withdrawn"}.get(r.state, "") }}</span></div>{% endfor %}</div>{% endif %}
+{% endblock %}

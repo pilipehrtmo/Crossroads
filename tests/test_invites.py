@@ -26,6 +26,7 @@ def mk(s, h, **kw):
 @pytest.fixture()
 def world():
     init_db()
+    from app.main import HITS; HITS.clear()
     with Session(engine) as s:
         for t in (Invitation, Block, Report, Application, Role, Project, User):
             for row in s.exec(select(t)).all(): s.delete(row)

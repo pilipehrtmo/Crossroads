@@ -59,6 +59,8 @@ class User(SQLModel, table=True):
     checklist_from: Optional[NaiveDatetime] = None   # practice reset: the Getting started list only counts projects and positions posted after this
     avatar_v: int = 0          # 0 = no photo; otherwise bumped on every upload so browsers fetch the new one
     banned: bool = False
+    student_status: str = Field(default="", sa_column_kwargs={"server_default": ""})   # student verification: "" (never started) / pending / needs_review / action_required / verified / rejected / expired / revoked (studentverify.py)
+    verify_expires_at: Optional[NaiveDatetime] = None   # when a document-verified student badge runs out (renewal rule per institution)
     open_to_join: bool = Field(default=False, sa_column_kwargs={"server_default": text("false")})   # listed in Find teammates (verified students only)
     origin: str = Field(default="real", sa_column_kwargs={"server_default": "real"})   # real / seed (sample content we posted) / demo (presentation accounts): only real counts in impact numbers
     verified_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
@@ -430,4 +432,29 @@ class Block(SQLModel, table=True):   # blocker never sees invitations, applicati
     id: Optional[int] = Field(default=None, primary_key=True)
     blocker_id: int = Field(foreign_key="user.id", index=True)
     blocked_id: int = Field(foreign_key="user.id", index=True)
+    at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+
+class StudentVerification(SQLModel, table=True):   # one uploaded proof of enrollment and its review (studentverify.py)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    doc_type: str = ""          # student_card / enrollment_certificate / status_document / other
+    storage_key: str = ""       # private bucket key; never shown in a page, email or URL; "" once deleted
+    mime: str = ""
+    size: int = 0
+    state: str = "needs_review"   # needs_review / action_required / verified / rejected / revoked (decision on THIS document)
+    reason: str = ""            # what the student is told (never who reviewed)
+    reviewer_id: Optional[int] = None
+    submitted_at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+    decided_at: Optional[NaiveDatetime] = None
+    delete_after: Optional[NaiveDatetime] = None   # the original file is removed after this (14 days after approval, 30 after rejection)
+    deleted_at: Optional[NaiveDatetime] = None
+
+class VerificationEvent(SQLModel, table=True):   # append-only log: every upload, view, decision and deletion
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)              # whose verification
+    request_id: Optional[int] = Field(default=None, index=True)
+    actor_id: Optional[int] = None                # who did it (the student, an admin, or None for the daily job)
+    action: str                                   # submitted / viewed / approved / rejected / action_required / revoked / expired / deleted
+    note: str = ""
     at: NaiveDatetime = Field(default_factory=datetime.utcnow)
