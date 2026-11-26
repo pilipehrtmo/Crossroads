@@ -18,3 +18,5 @@ CONTACT_EMAIL = os.getenv("CONTACT_EMAIL", "nthumatchmaker@gmail.com")   # shown
 MAIL_FROM = os.getenv("MAIL_FROM", os.getenv("SMTP_FROM", "nthumatchmaker@gmail.com"))   # must be a sender verified in Brevo
 # Email verification is switched on only when email can really be sent from the server
 REQUIRE_VERIFY = os.getenv("REQUIRE_EMAIL_VERIFY", "auto")
+
+MULTI_SCHOOL = os.getenv("MULTI_SCHOOL", "0") == "1"   # sign-up for students and staff of other Taiwanese institutions (academics.py)

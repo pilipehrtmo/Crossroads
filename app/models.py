@@ -458,3 +458,51 @@ class VerificationEvent(SQLModel, table=True):   # append-only log: every upload
     action: str                                   # submitted / viewed / approved / rejected / action_required / revoked / expired / deleted
     note: str = ""
     at: NaiveDatetime = Field(default_factory=datetime.utcnow)
+
+
+# ---------- multi-university foundation (academics.py) ----------
+class Institution(SQLModel, table=True):   # a recognized Taiwanese higher-education institution (MOE directory)
+    id: Optional[int] = Field(default=None, primary_key=True)
+    moe_code: str = Field(index=True, unique=True)   # the Ministry of Education school code, e.g. "0002"
+    name_zh: str
+    name_en: str = ""          # filled only from the school's own official English name; "" = not checked yet
+    en_source: str = ""        # where name_en was confirmed
+    public: bool = True
+    system: str = ""           # general / technological / teachers (MOE 體系別)
+    city: str = ""
+    website: str = ""
+    source_url: str = ""       # the official dataset this row came from
+    source_year: str = ""      # MOE academic year of that dataset, e.g. "115"
+    checked_at: Optional[NaiveDatetime] = None
+    active: bool = True
+    renewal_mmdd: str = ""     # when student badges renew each year (MM-DD); "" = the site default
+    catalog: str = ""          # "nthu" when a reviewed department catalog exists (departments.json); "" = departments typed by students
+
+class InstitutionDomain(SQLModel, table=True):   # email domains confirmed from the institution's own pages (never "any .edu.tw")
+    id: Optional[int] = Field(default=None, primary_key=True)
+    institution_id: int = Field(foreign_key="institution.id", index=True)
+    domain: str = Field(index=True)
+    audience: str = "both"     # student / staff / both
+    source_url: str = ""
+
+class StudentIdRule(SQLModel, table=True):   # a documented student-number format; no rule = manual review, never rejection
+    id: Optional[int] = Field(default=None, primary_key=True)
+    institution_id: int = Field(foreign_key="institution.id", index=True)
+    degree: str = ""           # "" = every degree level
+    pattern: str               # a full-match regular expression
+    example: str = ""
+    source_url: str = ""
+
+class Affiliation(SQLModel, table=True):   # a person's academic home; past ones are kept with current = False
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    institution_id: int = Field(foreign_key="institution.id", index=True)
+    unit_key: str = ""         # NTHU department id from departments.json (e.g. "eecs-cs"); "" elsewhere
+    unit_text: str = ""        # department as the person typed it (schools without a reviewed catalog)
+    degree: str = ""           # bachelor / master / phd ("" for staff)
+    student_id: str = ""       # exactly as typed (only trimmed)
+    sid_norm: str = Field(default="", index=True)   # upper-case, no spaces: uniqueness is per institution
+    kind: str = "student"      # student / professor / researcher
+    current: bool = True
+    review: str = ""           # "" ok / "id_format" no documented rule for this school / "unit" department typed, not checked
+    created: NaiveDatetime = Field(default_factory=datetime.utcnow)

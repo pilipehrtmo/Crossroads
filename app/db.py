@@ -47,7 +47,9 @@ def init_db():
               END IF; END $$"""))
     # one account per student ID and per email, enforced by the database too (blank IDs, e.g. professors, are ignored)
     for ddl in ("""CREATE UNIQUE INDEX IF NOT EXISTS user_sid_uniq ON "user" (upper(trim(student_id))) WHERE trim(student_id) <> ''""",
-                """CREATE UNIQUE INDEX IF NOT EXISTS user_email_lower_uniq ON "user" (lower(email))"""):
+                """CREATE UNIQUE INDEX IF NOT EXISTS user_email_lower_uniq ON "user" (lower(email))""",
+                # one CURRENT account per student ID within each institution (the same number at two schools is fine)
+                f"""CREATE UNIQUE INDEX IF NOT EXISTS affiliation_sid_uniq ON affiliation (institution_id, sid_norm) WHERE sid_norm <> '' AND current = {'1' if DB_URL.startswith('sqlite') else 'true'}"""):
         try:
             with engine.begin() as c: c.execute(text(ddl))
         except Exception as e: print(">>> could not add unique index (duplicates?):", type(e).__name__, flush=True)

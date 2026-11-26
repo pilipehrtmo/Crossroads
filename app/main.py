@@ -261,7 +261,17 @@ from . import departments as DEP
 def dept_filter(ctx, u): return DEP.display(u, ctx.get("lang", "en")) if u else ""   # linked department in the reader's language, else the text as typed
 templates.env.filters["dept"] = dept_filter
 @pass_context
-def study_filter(ctx, u): return DEP.study(u, ctx.get("lang", "en")) if u else ""   # "Master's · Computer Science"
+def study_filter(ctx, u):   # "Master's · Computer Science"; with multi-university sign-up on, other schools are named too
+    if not u: return ""
+    base = DEP.study(u, ctx.get("lang", "en"))
+    from .config import MULTI_SCHOOL
+    if not MULTI_SCHOOL or not getattr(u, "id", None): return base
+    from . import academics as AC
+    with Session(engine) as s:
+        a = AC.current(s, u); inst = s.get(Institution, a.institution_id) if a else None
+    if not inst or inst.moe_code == AC.NTHU: return base
+    name = inst.name_zh if ctx.get("lang") == "zh" or not inst.name_en else inst.name_en
+    return f"{name} · {base}" if base else name
 templates.env.filters["study"] = study_filter
 templates.env.globals.update(DEP=DEP)
 
@@ -324,16 +334,25 @@ def login(req: Request, email: str = Form(""), password: str = Form(""), s: Sess
 @app.get("/signup")
 def signup_page(req: Request, user=Depends(me)):
     if user: return go("/")
-    return render(req, "signup.html", titles=TITLES, form={})
+    return render(req, "signup.html", titles=TITLES, form={}, **school_ctx(req))
+
+def school_ctx(req):
+    """Sign-up list of institutions, only while multi-university sign-up is switched on."""
+    from .config import MULTI_SCHOOL
+    if not MULTI_SCHOOL: return dict(multi_school=False, schools=[])
+    from .academics import choices
+    with Session(engine) as s: return dict(multi_school=True, schools=choices(s, pick_lang(req)))
 
 @app.post("/signup")
 def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
            password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), title_other: str = Form(""),
-           evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), degree: str = Form(""), s: Session = Depends(get_session)):
+           evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), degree: str = Form(""),
+           institution: str = Form(""), unit_text: str = Form(""), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = re.sub(r"\s+", "", student_id)
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
     back = lambda err, field="": render(req, "signup.html", error=err, err_field=field, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence, agree=agree,
-                                                                                 dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other, degree=degree))
+                                                                                 dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other, degree=degree,
+                                                                                 institution=institution, unit_text=unit_text), **school_ctx(req))
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
@@ -341,12 +360,29 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     np_ = V.name_problem(name)
     if np_: return back(np_, "#n")
     if s.exec(select(User).where(func.lower(User.email) == email)).first(): return back("An account with this email already exists. Log in instead, or use Forgot password.", "#e")
-    if role == "faculty":
+    from .config import MULTI_SCHOOL
+    from . import academics as AC
+    inst = None   # another institution than NTHU (multi-university sign-up); None = the NTHU path, unchanged
+    if MULTI_SCHOOL and institution and institution != AC.NTHU:
+        inst = s.exec(select(Institution).where(Institution.moe_code == institution, Institution.active == True)).first()
+        if not inst: return back("Choose your university or college from the list.", "#inst")
+    sid_review = ""
+    if inst and role != "faculty":   # a student of another institution: its own ID rule (or manual review), its own uniqueness
+        if STUDENT_EMAIL_RULE == "nthu" and not academic_email(email) and email not in ADMIN_EMAILS:
+            return back("Use your university email address to sign up.", "#e")
+        verdict, msg = AC.check_sid(s, inst, degree, sid)
+        if verdict == "bad": return back(msg, "#s")
+        if AC.sid_taken(s, inst.id, sid): return back("That student ID already has an account. Log in instead, or use Forgot password.", "#s")
+        unit_text = " ".join(unit_text.split())[:80]
+        if len(unit_text) < 2: return back("Enter your department or program.", "#ut")
+        if degree not in DEP.DEGREES: return back("Choose your degree: Bachelor's, Master's or PhD.", "#dg")
+        sid_review = "id_format" if verdict == "review" else ""
+    elif role == "faculty":
         if not (nthu_email(email) or academic_email(email)):
             return back("Use your institutional email: an NTHU address such as name@cs.nthu.edu.tw or name@gapp.nthu.edu.tw, or, for a joint or visiting appointment, your university or institute address.", "#e")
         if title not in TITLES and not (title == "Other academic appointment" and title_other.strip()): return back("Choose your academic title, or write it in the box under Other.", "#ti")
         if len(dept) < 2: return back("Enter your department.", "#dp")
-        if page and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.", "#pg")
+        if page and not inst and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.", "#pg")
         if s.exec(select(User).where(User.role == "faculty", User.faculty_status != "rejected", func.lower(User.name) == name.lower(), func.lower(User.faculty) == dept.lower())).first():
             return back("A professor account with this name and department already exists. If it's yours, log in or use Forgot password; otherwise contact an admin.", "#n")
         sid = ""
@@ -362,13 +398,15 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     if err: return back(err, "#pw")
     if password != password2: return back("The two passwords are not the same.", "#pw2")
     if not agree: return back("Please agree to the privacy notice to create an account.", "#lf .chk")
-    u = User(email=email, name=name, student_id=sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
+    u = User(email=email, name=name, student_id="" if inst else sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
     u.lang = pick_lang(req)
     if role == "faculty":
         u.role, u.faculty, u.faculty_url = "faculty", dept, page
         u.title = title if title in TITLES else re.sub(r"\s+", " ", title_other).strip()[:60]
         u.faculty_evidence = evidence.replace("\r", "").strip()[:1000]
         relink_text(u, dept)
+    elif inst:
+        u.degree, u.faculty = degree, unit_text   # typed department: shown as typed, never linked to an NTHU unit
     else:
         u.degree = degree
         if dept_fields: set_dept(u, dept_fields)   # department from the list (or Other, which waits for an admin)
@@ -377,6 +415,16 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     except IntegrityError:   # two sign-ups with the same email or student ID at the same moment: the database keeps only one
         s.rollback(); return back("That email or student ID already has an account. Log in instead, or use Forgot password.")
     s.refresh(u)
+    home = inst or AC.nthu(s)   # NTHU sign-ups also get an affiliation once the institution table exists (dual-write)
+    if home:
+        fac = role == "faculty"
+        AC.attach(s, u, home, degree="" if fac else degree, sid="" if fac else sid, unit_key="" if inst else (u.dept_id or ""),
+                  unit_text=(dept if fac else unit_text) if inst else ("" if u.dept_id else (u.faculty or "")), kind="professor" if fac else "student",
+                  review=sid_review or ("unit" if inst and not fac else ""))
+        try: s.commit()
+        except IntegrityError:   # the same student ID at the same school was just taken by another sign-up
+            s.rollback(); s.delete(s.get(User, u.id)); s.commit()
+            return back("That student ID already has an account. Log in instead, or use Forgot password.", "#s")
     note(f"signup:{ip_of(req)}")
     if role == "faculty":
         from .profverify import new_application
@@ -494,7 +542,9 @@ def privacy(req: Request, user=Depends(me)): return render(req, "privacy.html", 
 @app.get("/impact")
 def impact(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     from .impact import cached
-    return render(req, "impact.html", user, m=cached(s))
+    from .academics import institution_of_factory
+    multi = s.exec(select(Affiliation.id).where(Affiliation.current == True)).first() is not None   # cross-university needs affiliations
+    return render(req, "impact.html", user, m=cached(s, institution_of_factory(s) if multi else None))
 
 # ---------- profile ----------
 @app.get("/profile")

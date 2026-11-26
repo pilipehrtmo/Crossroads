@@ -8,6 +8,8 @@
 <label class="kind"><input type="radio" name="role" value="faculty" {{ "checked" if f.get("role") == "faculty" }}><span>Professor or advisor</span></label></div>
 <label for="e" id="elabel">Email</label><input id="e" name="email" type="email" required autocapitalize="none" spellcheck="false" value="{{ f.get('email', '') }}" autocomplete="email" data-suggest-email>
 <p class="muted fine" id="ehint" hidden>Use your institutional email, such as name@cs.nthu.edu.tw. A @gapp.nthu.edu.tw address, or another university's address for a joint or visiting appointment, also works; an admin then confirms you by hand.</p>
+{% if multi_school and schools %}<label for="inst">University or college</label><select id="inst" name="institution">{% for code, nm in schools %}<option value="{{ code }}" {{ "selected" if f.get("institution", "0002") == code }}>{{ keep(nm) }}</option>{% endfor %}</select>
+<p class="muted fine">From the Ministry of Education list of Taiwanese universities and colleges.</p>{% endif %}
 <div class="two"><div><label for="n">Full name</label><input id="n" name="name" autocomplete="name" required value="{{ f.get('name', '') }}"></div>
 <div class="r-student"><label for="s">Student ID</label><input id="s" name="student_id" inputmode="numeric" pattern="[0-9]{9}" minlength="9" maxlength="9" autocomplete="off" placeholder="e.g. 115006212" title="Exactly 9 digits, for example 115006212" aria-describedby="sidh" value="{{ f.get('sid', '') }}"><p class="muted fine" id="sidh">9 digits, as on your student card.</p></div>
 <div class="r-faculty" hidden><label for="ti">Academic title</label><select id="ti" name="title">{% for t in titles %}<option value="{{ t }}" {{ "selected" if f.get("title") == t }}>{{ t }}</option>{% endfor %}<option value="Other academic appointment" {{ "selected" if f.get("title") == "Other academic appointment" }}>Other academic appointment</option></select></div></div>
@@ -15,8 +17,15 @@
 <div class="r-faculty" hidden><label for="dp" id="dplabel">Department</label><input id="dp" name="dept" list="colleges" value="{{ f.get('dept', '') }}" placeholder="e.g. Department of Computer Science" autocomplete="organization-title">
 <datalist id="colleges">{% for g, opts in DEP.groups(lang) %}{% for v, l in opts %}{% if not v.startswith("c:") %}<option value="{{ l }}">{% endif %}{% endfor %}{% endfor %}</datalist></div>
 <div class="r-student"><label for="dg">Degree</label><select id="dg" name="degree"><option value="">Choose…</option>{% for k, d in DEP.DEGREES.items() %}<option value="{{ k }}" {{ "selected" if f.get("degree") == k }}>{{ d.zh if lang == "zh" else d.en }}</option>{% endfor %}</select></div>
-<div class="r-student">{{ dept_picker(cur=f.get("dept_sel", ""), track=f.get("dept_track", ""), other=f.get("dept_other", ""), wid="dpw") }}
+<div class="r-student r-nthu">{{ dept_picker(cur=f.get("dept_sel", ""), track=f.get("dept_track", ""), other=f.get("dept_other", ""), wid="dpw") }}
 <p class="muted fine">Shown on your profile and used to filter projects by department. You can change it later.</p></div>
+{% if multi_school %}<div class="r-student r-other" hidden><label for="ut">Department or program</label><input id="ut" name="unit_text" maxlength="80" value="{{ f.get('unit_text', '') }}" placeholder="e.g. Department of Electrical Engineering">
+<p class="muted fine">Type it as your school names it. An admin checks it, since we don't have your school's department list yet.</p></div>
+<script>(()=>{const i=document.getElementById("inst"),s=document.getElementById("s"),h=document.getElementById("sidh");if(!i||!s)return;
+const sync=()=>{const n=i.value==="0002";document.querySelectorAll(".r-nthu").forEach(e=>e.hidden=!n);document.querySelectorAll(".r-other").forEach(e=>{e.hidden=n||document.querySelector("input[name=role]:checked")?.value==="faculty"});
+ if(n){s.setAttribute("pattern","[0-9]{9}");s.minLength=9;s.maxLength=9;s.inputMode="numeric";h.textContent={{ "9 digits, as on your student card."|tr|tojson }}}
+ else{s.setAttribute("pattern","[A-Za-z0-9-]{4,20}");s.minLength=4;s.maxLength=20;s.inputMode="text";h.textContent={{ "As printed on your student card. An admin checks it."|tr|tojson }}}};
+i.addEventListener("change",sync);document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})()</script>{% endif %}
 <div class="r-faculty" hidden>
 <label for="pg">Official NTHU faculty page <small class="muted">(recommended)</small></label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
 <p class="muted fine">Your entry on your department's faculty list, or your page on nthu.edu.tw. We open it and compare your name, title, department and email with what it shows. If you don't have one yet, leave it empty and add a note below.</p>

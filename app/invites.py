@@ -68,6 +68,8 @@ def candidates(s, pr, r, lead, college="", degree="", other_college=False):
     lead_cols = DEP.colleges_of(getattr(s.get(User, pr.owner_id), "dept_id", "") or "")
     blocks = s.exec(select(Block).where(or_(Block.blocker_id == pr.owner_id, Block.blocked_id == pr.owner_id))).all()
     blocked_ids = {b.blocked_id for b in blocks} | {b.blocker_id for b in blocks}
+    from .academics import institution_of_factory
+    inst_of = institution_of_factory(s); lead_inst = inst_of(s.get(User, pr.owner_id))
     out = []
     for u in s.exec(select(User).where(User.open_to_join == True, User.verified == True, User.banned == False,
                                        User.is_admin == False, User.is_faculty == False)).all():
@@ -79,7 +81,8 @@ def candidates(s, pr, r, lead, college="", degree="", other_college=False):
         if other_college and not other: continue
         c = coverage(u.skills, r, have)
         if not (c["must_have"] or c["nice_have"]): continue          # nothing in common with this seat: not a candidate
-        out.append(dict(u=u, cov=c, other=other, invited=invited.get(u.id), applied=u.id in applied,
+        ui = inst_of(u); other_uni = bool(lead_inst and ui and ui != lead_inst)
+        out.append(dict(u=u, cov=c, other=other or other_uni, other_uni=other_uni, invited=invited.get(u.id), applied=u.id in applied,
                         hours_ok=(u.hours or 0) >= (pr.hours_per_week or 0)))
     out.sort(key=lambda x: (-(x["cov"]["rank"] if x["cov"]["rank"] is not None else len(x["cov"]["nice_have"])),
                             not x["other"], not x["hours_ok"], x["u"].id))

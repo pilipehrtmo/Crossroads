@@ -1961,6 +1961,17 @@
     "; until it is approved you can still apply for up to 3 seats.": "；在通過之前，你仍可申請最多 3 個職位。",
     "Publishing a project needs a verified account. Send your student verification document first; you can apply for seats meanwhile.": "刊登專案需要已驗證的帳號。請先送出學生驗證文件；在這段期間你仍可申請職位。",
     "Get your Verified student badge": "取得已驗證學生徽章",
-    "Send one official document (student ID card or enrollment certificate). Needed to publish projects and to be found by teams.": "送出一份正式文件（學生證或在學證明）。刊登專案和被團隊找到都需要它。"
+    "Send one official document (student ID card or enrollment certificate). Needed to publish projects and to be found by teams.": "送出一份正式文件（學生證或在學證明）。刊登專案和被團隊找到都需要它。",
+    "University or college": "大學或學院",
+    "From the Ministry of Education list of Taiwanese universities and colleges.": "來自教育部的大專校院名錄。",
+    "Department or program": "系所或學程",
+    "e.g. Department of Electrical Engineering": "例如：電機工程學系",
+    "Type it as your school names it. An admin checks it, since we don't have your school's department list yet.": "請照你學校的名稱填寫。因為我們還沒有你學校的系所清單，會由管理員確認。",
+    "As printed on your student card. An admin checks it.": "和學生證上印的一樣，會由管理員確認。",
+    "Choose your university or college from the list.": "請從清單選擇你的大學或學院。",
+    "Use your university email address to sign up.": "請用你的大學 email 註冊。",
+    "Enter your student ID as it is printed on your student card (4 to 20 letters or digits).": "請照學生證上的學號填寫（4 到 20 個英文字母或數字）。",
+    "Enter your department or program.": "請填寫你的系所或學程。",
+    "Other university": "其他大學"
   }
 }
