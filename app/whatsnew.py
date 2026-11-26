@@ -27,8 +27,8 @@ RELEASES = [
                     en=("Getting started", "Your checklist lives here and on the home page until everything is done."),
                     zh=("新手上路", "清單會顯示在這裡和首頁，直到全部完成。"))),
         I("verify", "Feature", "prof", "shield",
-          ("Professor verification", "Confirm your email, give your official NTHU page, and get verified automatically when they match, or by an admin. Adjunct, visiting and jointly appointed faculty are supported."),
-          ("教授驗證", "確認信箱並提供清大官方頁面，資料相符就會自動通過，否則由管理員審核。兼任、客座和合聘教師都適用。"),
+          ("Professor verification", "Confirm your email, give your official university page, and get verified automatically when they match, or by an admin. Adjunct, visiting and jointly appointed faculty are supported."),
+          ("教授驗證", "確認信箱並提供學校官方頁面，資料相符就會自動通過，否則由管理員審核。兼任、客座和合聘教師都適用。"),
           ("Open verification", "前往驗證"), "/verification",
           step=dict(path=r"^/verification$", sel=".vstatus",
                     en=("Your verification", "Your status, what's missing and the admin's message, if any, are all on this page."),
@@ -61,7 +61,7 @@ def whatsnew_data(user, lang):
                             title=it["zh" if zh else "en"][0], text=it["zh" if zh else "en"][1], cta=it["cta"][1 if zh else 0], href=it["href"],
                             tour=f"new:wn_{it['key']}" if it["step"] else "", fresh=fresh))
     return dict(items=out, latest=RELEASES[0]["id"] if RELEASES else "", uid=user.id,
-                labels=dict(title="What's new" if not zh else "最新功能", sub=("New on Matchmaker" if not zh else "Matchmaker 的新功能"),
+                labels=dict(title="What's new" if not zh else "最新功能", sub=("New on Crossroads" if not zh else "Crossroads 的新功能"),
                             prev="Previous" if not zh else "上一個", next="Next" if not zh else "下一個", done="Done" if not zh else "完成",
                             show="Show me" if not zh else "帶我看", close="Close" if not zh else "關閉"))
 

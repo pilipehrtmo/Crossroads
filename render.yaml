@@ -1,4 +1,4 @@
-# Render Blueprint for Matchmaker. (The service name and the onrender.com address stay "nthu-matchmaker": Render cannot rename a live address.)
+# Render Blueprint for Crossroads. (The service name and the onrender.com address stay "nthu-matchmaker": Render cannot rename a live address.)
 # New service: New -> Blueprint -> pick this repo -> fill in the values Render asks for -> Apply.
 # Values marked "sync: false" are set (and later changed) only in the Render dashboard, so a deploy never overwrites them.
 # Never write a secret in this file: it is in the public GitHub repository.

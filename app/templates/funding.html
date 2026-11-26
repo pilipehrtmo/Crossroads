@@ -1,5 +1,5 @@
 {% extends "base.html" %}{% block body %}<h1>Funding &amp; incubation</h1>
-<p class="muted">Programs that fund or coach NTHU student startups and research. Each startup or research project page checks your team against them. Competitions are on the <a href="/#comps">home page</a>.</p>
+<p class="muted">Programs that fund or coach student startups and research in Taiwan. Each startup or research project page checks your team against them. Competitions are on the <a href="/#comps">home page</a>.</p>
 {% if mine %}<div class="box"><b>Your projects:</b> {% for p in mine %}<a href="/projects/{{ p.id }}#funding">{{ p.title }}</a>{{ ", " if not loop.last }}{% endfor %}. Open one to see what is missing.</div>
 {% elif user %}<p class="box">Post a <a href="/projects/new?kind=Startup">startup</a> or <a href="/projects/new?kind=Research">research</a> project to get a readiness check against these programs.</p>{% endif %}
 

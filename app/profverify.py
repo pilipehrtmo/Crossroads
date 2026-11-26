@@ -62,7 +62,7 @@ def auto_ok(u, found):
 def run_check(s, u):
     """Open their official page and record what is on it. May verify a pending account (never touches other statuses)."""
     found = []
-    if not u.faculty_url: note_ = "No official NTHU page given yet."
+    if not u.faculty_url: note_ = "No official university page given yet."
     else:
         text, final, err = fetch_page(u.faculty_url)
         if err: note_ = err
@@ -142,7 +142,7 @@ def code_send(req: Request, user=Depends(me), s: Session = Depends(get_session))
     tok = AuthToken(user_id=user.id, kind="faccode", token_hash=secrets.token_hex(24), expires=datetime.utcnow() + timedelta(minutes=15))
     s.add(tok); s.flush()
     tok.token_hash = token_hash(f"faccode:{tok.id}:{code}"); s.commit()   # the id keeps the hash unique; the code itself is never stored
-    try: send_mail(user.email, "Your Matchmaker verification code",
+    try: send_mail(user.email, "Your Crossroads verification code",
                    f"Hi {user.name or ''},\n\nYour verification code is {code}\n\nIt works for 15 minutes. If you did not ask for it, ignore this email.")
     except Exception as e:
         print(">>> CODE EMAIL FAILED", user.email, type(e).__name__, e)

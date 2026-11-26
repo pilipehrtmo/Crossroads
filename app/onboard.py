@@ -34,7 +34,7 @@ def items_for(s, u):
     locked = not u.is_faculty
     return "prof", [
         dict(key="email", label="Confirm your email", desc="A 6-digit code or the link we emailed you.", done=bool(u.email_verified), href="/verification#steps", tour="prof:p_code"),
-        dict(key="verified", label="Get verified", desc="Your official NTHU page is checked, or an admin reviews your information.", done=u.is_faculty, href="/verification", tour="prof:p_info"),
+        dict(key="verified", label="Get verified", desc="Your official university page is checked, or an admin reviews your information.", done=u.is_faculty, href="/verification", tour="prof:p_info"),
         dict(key="research", label="Fill in your research profile", desc="Research interests, lab and links, so students can find you.", done=bool((u.research or "").strip()), href="/profile#research", tour="prof:p_research"),
         dict(key="project", label="Post a project", desc="A lab or research project with the seats you want students for.", done=posted, href="/projects/new", tour="prof:p_proj"),
         dict(key="opening", label="Open a research position", desc="Students apply with a note; you choose who joins.", done=bool(new_ops), href="/openings/new", tour="prof:p_open", locked=locked),

@@ -37,7 +37,7 @@ def notify(s, user_ids, kind, text, link, project_id=None, actor=None, instant_o
         for u in s.exec(q).all():
             why = ("You get this email because someone applied to something you posted." if kind in ALWAYS
                    else "You get these emails because of your notification email setting on your profile.")
-            _mail_later(u.email, "Matchmaker: " + text[:80], f"{text}\n\nOpen it: {BASE_URL}{link}\n\n{why}")
+            _mail_later(u.email, "Crossroads: " + text[:80], f"{text}\n\nOpen it: {BASE_URL}{link}\n\n{why}")
             for n in s.exec(select(Notification).where(Notification.user_id == u.id, Notification.link == link, Notification.emailed_at == None)).all():
                 n.emailed_at = now; s.add(n)
         s.commit()
@@ -91,7 +91,7 @@ def send_digests():
                         .order_by(Notification.created.desc()).limit(30)).all()
             if not ns: continue
             lines = "\n".join(f"- {n.text}\n  {BASE_URL}{n.link}" for n in ns)
-            _mail_later(u.email, f"Matchmaker: {len(ns)} update{'s' if len(ns) != 1 else ''} for you",
+            _mail_later(u.email, f"Crossroads: {len(ns)} update{'s' if len(ns) != 1 else ''} for you",
                         f"Hi {u.name},\n\nHere is what happened since your last digest:\n\n{lines}\n\nChange how often you get these on {BASE_URL}/notifications")
             for n in ns: n.emailed_at = datetime.utcnow(); s.add(n)
             s.commit()

@@ -1,4 +1,4 @@
-"""Impact numbers (/impact): what Matchmaker has really done, counted from the database.
+"""Impact numbers (/impact): what Crossroads has really done, counted from the database.
 
 Only REAL records count: a person or project marked origin "seed" (sample content we posted) or "demo" (presentation
 accounts) never adds to a number, and neither do admins or banned accounts. Seed and demo counts are shown separately

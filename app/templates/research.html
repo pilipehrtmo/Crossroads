@@ -22,7 +22,7 @@
 {% if p.research %}<span class="oc-skills">{% for t in p.research.split(",")[:5] if t.strip() %}<span class="tag">{{ keep(t.strip()) }}</span>{% endfor %}</span>{% endif %}
 {% if counts[p.id] %}<span class="oc-fit">{{ counts[p.id] }} open position{{ "s" if counts[p.id] != 1 }}</span>{% endif %}</a>{% endfor %}</div>
 <p class="muted rnone" hidden>No professors match your search.</p>
-{% else %}<p class="card muted">No verified professors on the site yet. Professors sign up with their NTHU staff email.</p>{% endif %}</section>
+{% else %}<p class="card muted">No verified professors on the site yet. Professors sign up with their university staff email.</p>{% endif %}</section>
 <script>(()=>{const q=document.getElementById("rq");if(!q)return;q.addEventListener("input",()=>{const w=q.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
 document.querySelectorAll(".dsec").forEach(sec=>{const cs=sec.querySelectorAll("[data-text]");let n=0;cs.forEach(c=>{const ok=w.every(x=>c.dataset.text.includes(x));c.hidden=!ok;if(ok)n++});const e=sec.querySelector(".rnone");if(e)e.hidden=n>0||!cs.length})})})();</script>
 {% endblock %}

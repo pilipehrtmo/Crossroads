@@ -1,4 +1,4 @@
-# Matchmaker (Team 22)
+# Crossroads (Team 22)
 
 Students find teammates across faculties for competitions, startups, research and side projects.
 Python (FastAPI, Jinja2, SQLModel) with Postgres on Supabase, hosted on Render.

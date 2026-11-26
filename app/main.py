@@ -239,7 +239,7 @@ def pic(u, cls="av"):   # profile photo if there is one, otherwise initials
     return Markup(f'<span class="{cls}" aria-hidden="true">{escape(initials(u))}</span>')
 def facbadge(u):   # green badge for verified professors/advisors, showing the title they chose at sign-up
     if not (u and u.is_faculty): return ""
-    return Markup(f'<span class="pill fac" title="Verified NTHU teaching staff">✔ {escape(u.title or "Faculty")}</span>')
+    return Markup(f'<span class="pill fac" title="Verified teaching staff">✔ {escape(u.title or "Faculty")}</span>')
 templates.env.filters["dn"] = dn; templates.env.globals.update(initials=initials, pic=pic, facbadge=facbadge)
 
 def name_handles():   # one-time: users who still have a random "student-xxxxxx" address get one made from their name
@@ -288,8 +288,8 @@ def use_token(s, t, kinds):
 
 def send_verify(s, u):
     link = make_link(s, u, "verify", 48)
-    send_mail(u.email, "Confirm your email for Matchmaker",
-              f"Hi {u.name or ''},\n\nConfirm your email to finish creating your Matchmaker account:\n{link}\n\nThe link works for 48 hours. If you did not sign up, ignore this email.")
+    send_mail(u.email, "Confirm your email for Crossroads",
+              f"Hi {u.name or ''},\n\nConfirm your email to finish creating your Crossroads account:\n{link}\n\nThe link works for 48 hours. If you did not sign up, ignore this email.")
 
 def pw_stamp(u): return hashlib.sha256((u.password_hash or "").encode()).hexdigest()[:12]
 def start_session(req, u):
@@ -379,16 +379,16 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
         sid_review = "id_format" if verdict == "review" else ""
     elif role == "faculty":
         if not (nthu_email(email) or academic_email(email)):
-            return back("Use your institutional email: an NTHU address such as name@cs.nthu.edu.tw or name@gapp.nthu.edu.tw, or, for a joint or visiting appointment, your university or institute address.", "#e")
+            return back("Use your university or institute email address, for example name@cs.nthu.edu.tw at NTHU.", "#e")
         if title not in TITLES and not (title == "Other academic appointment" and title_other.strip()): return back("Choose your academic title, or write it in the box under Other.", "#ti")
         if len(dept) < 2: return back("Enter your department.", "#dp")
-        if page and not inst and not nthu_url(page): return back("The link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.", "#pg")
+        if page and not inst and not nthu_url(page): return back("For NTHU, the link must be an official page on nthu.edu.tw, such as your department's faculty list. Leave it empty if you don't have one yet.", "#pg")
         if s.exec(select(User).where(User.role == "faculty", User.faculty_status != "rejected", func.lower(User.name) == name.lower(), func.lower(User.faculty) == dept.lower())).first():
             return back("A professor account with this name and department already exists. If it's yours, log in or use Forgot password; otherwise contact an admin.", "#n")
         sid = ""
     else:
         if STUDENT_EMAIL_RULE == "nthu" and not nthu_email(email) and email not in ADMIN_EMAILS:
-            return back("Use your NTHU email to sign up, for example s114123456@m114.nthu.edu.tw or your @gapp.nthu.edu.tw address.", "#e")
+            return back("Use your university email to sign up, for example s114123456@m114.nthu.edu.tw at NTHU.", "#e")
         if not SID.match(sid): return back("Your student ID must be exactly 9 digits, for example 115006212.", "#s")
         if s.exec(select(User).where(func.upper(func.trim(User.student_id)) == sid)).first(): return back("That student ID already has an account. Log in instead, or use Forgot password.", "#s")
         dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
@@ -474,7 +474,7 @@ def forgot(req: Request, email: str = Form(""), s: Session = Depends(get_session
     u = s.exec(select(User).where(User.email == email)).first()
     if u and not u.banned:
         link = make_link(s, u, "reset", 1)
-        try: send_mail(u.email, "Set your Matchmaker password", f"Hi {u.name or ''},\n\nSet a new password here (the link works for 1 hour):\n{link}\n\nIf you did not ask for this, ignore this email.")
+        try: send_mail(u.email, "Set your Crossroads password", f"Hi {u.name or ''},\n\nSet a new password here (the link works for 1 hour):\n{link}\n\nIf you did not ask for this, ignore this email.")
         except Exception as e:
             print(">>> RESET EMAIL FAILED", email, type(e).__name__, e)
             return render(req, "forgot.html", can_email=True, error="We could not send the email just now. Try again in a minute.", email=email)

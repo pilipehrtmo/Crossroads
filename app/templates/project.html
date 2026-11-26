@@ -5,7 +5,7 @@
 {% elif notice == "edited" %}<p class="box ok" role="status">Application updated.</p>
 {% elif notice == "short" %}<p class="err" role="alert">Your note is too short: write at least 20 characters about why you fit.</p>
 {% elif notice == "long" %}<p class="err" role="alert">Your note is too long: keep it to 1,000 characters at most.</p>
-{% elif notice == "facultyonly" %}<p class="box" role="status">Only verified NTHU professors can apply for an advisor seat.</p>
+{% elif notice == "facultyonly" %}<p class="box" role="status">Only verified professors can apply for an advisor seat.</p>
 {% elif notice == "withdrawn" %}<p class="box" role="status">Application withdrawn. You can apply again while the seat is open.</p>
 {% elif notice == "closed" %}<p class="err" role="status">This seat or project is no longer taking applications.</p>
 {% elif notice == "seatfull" %}<p class="err" role="alert">This seat was filled a moment ago, so that application was not accepted.</p>
@@ -62,7 +62,7 @@
 {% if x.r.must %}<div><p class="req-h must">Requirements</p><ul class="req must">{% for l in x.r.must.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}
 {% if x.r.nice %}<div><p class="req-h nice">Nice to have</p><ul class="req nice">{% for l in x.r.nice.splitlines() if l.strip() %}<li>{{ l }}</li>{% endfor %}</ul></div>{% endif %}</div>{% endif %}</details>
 {% set myapp = (x.apps|selectattr("1.id", "equalto", user.id if user else 0)|list|first) if user else none %}
-{% if x.r.advisor and user and not is_owner and not x.r.filled and accepting and not user.is_faculty %}<p class="muted fine">Only verified NTHU professors can apply for an advisor seat.</p>
+{% if x.r.advisor and user and not is_owner and not x.r.filled and accepting and not user.is_faculty %}<p class="muted fine">Only verified professors can apply for an advisor seat.</p>
 {% elif user and not is_owner and not x.r.filled and accepting and (not myapp or myapp[0].status == "withdrawn") %}<details><summary class="applysum">{{ "Apply again" if myapp else "Apply for this seat" }}</summary>
 <form method="post" action="/roles/{{ x.r.id }}/apply"><input type="hidden" name="csrf" value="{{ csrf }}"><label for="m{{ x.r.id }}">Why you?</label>
 <textarea id="m{{ x.r.id }}" name="message" rows="4" minlength="20" maxlength="1000" data-counter required placeholder="Tell the project leader why you're interested, what relevant experience or skills you have, and how you hope to contribute to the project."></textarea><p><button>Send application</button></p></form></details>
@@ -73,7 +73,7 @@
 {% else %}<p class="apps-h">Your application</p><p class="apps-note">Only you, the project lead and admins can see this.</p>{% endif %}
 {% for a, u in x.apps %}
 <div class="app">{{ pic(u, "av") }}<div class="app-main">
-<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified NTHU student" aria-label="Verified">✔</span>{% endif %}{{ facbadge(u) }}{% if not u.is_faculty and u|study %} <small class="muted">{{ u|study }}</small>{% endif %}{% if (is_owner or user.is_admin) and not u.is_faculty and not u.verified %} <span class="pill warn">Not verified yet</span>{% endif %}{% if x.app_cov.get(a.id) %} <span class="pill match">{{ keep(x.app_cov[a.id]) }}</span>{% endif %}</span>
+<div class="app-top"><span class="app-who"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified student" aria-label="Verified">✔</span>{% endif %}{{ facbadge(u) }}{% if not u.is_faculty and u|study %} <small class="muted">{{ u|study }}</small>{% endif %}{% if (is_owner or user.is_admin) and not u.is_faculty and not u.verified %} <span class="pill warn">Not verified yet</span>{% endif %}{% if x.app_cov.get(a.id) %} <span class="pill match">{{ keep(x.app_cov[a.id]) }}</span>{% endif %}</span>
 <span class="badge b-{{ a.status }}">{{ {"closed": "Seat filled", "withdrawn": "Withdrawn"}.get(a.status, a.status|capitalize) }}</span></div>
 {{ pro_links(u, compact=True) }}
 {% if a.message %}<p class="app-msg">{{ a.message }}</p>{% else %}<p class="muted app-none">No message.</p>{% endif %}

@@ -27,7 +27,7 @@ const sync=()=>{const n=i.value==="0002";document.querySelectorAll(".r-nthu").fo
  else{s.setAttribute("pattern","[A-Za-z0-9-]{4,20}");s.minLength=4;s.maxLength=20;s.inputMode="text";h.textContent={{ "As printed on your student card. An admin checks it."|tr|tojson }}}};
 i.addEventListener("change",sync);document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})()</script>{% endif %}
 <div class="r-faculty" hidden>
-<label for="pg">Official NTHU faculty page <small class="muted">(recommended)</small></label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
+<label for="pg">Official faculty page on your university's website <small class="muted">(recommended)</small></label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
 <p class="muted fine">Your entry on your department's faculty list, or your page on nthu.edu.tw. We open it and compare your name, title, department and email with what it shows. If you don't have one yet, leave it empty and add a note below.</p>
 <label for="ev">Note for the reviewer <small class="muted">(optional)</small></label><textarea id="ev" name="evidence" rows="2" maxlength="1000" placeholder="e.g. Adjunct in Electrical Engineering since 2025; the department office can confirm">{{ f.get('evidence', '') }}</textarea>
 <p class="muted fine">Your account works right away. You can fill in your profile and browse projects; supervising projects, research positions and the advisor dashboard open once you are verified. Please don't upload or paste ID documents.</p></div>
