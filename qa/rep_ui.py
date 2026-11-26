@@ -30,7 +30,7 @@ with sync_playwright() as p:
     for lang in ("en", "zh"):
         for vp in ("desk", "tab", "phone"):
             tag = f"{lang}_{vp}"
-            ctx, pg = page(amy, lang, vp); pg.goto(B + "/"); clean(pg)
+            ctx, pg = page(amy, lang, vp); pg.goto(B + "/"); pg.wait_for_load_state("networkidle"); pg.wait_for_timeout(500); clean(pg)   # the board sorts itself after load: let it settle before hovering
             fy = pg.locator("#plist .fytag")
             ok(fy.count() >= 1 and fy.first.inner_text().strip() in ("For you", "為你推薦"), f"{tag} home: For you tag on cards ({fy.count()})")
             first = pg.locator("#plist .pcard:not([hidden])").first
