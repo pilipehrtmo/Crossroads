@@ -1,3 +1,6 @@
 {% extends "base.html" %}{% block body %}<section class="card errpage"><h1>{{ title }}</h1><p>{{ msg }}</p>
+{% if vdoc == "sent" %}<p class="box ok vnote" role="status"><b>Student document received.</b> An admin reviews it, usually within two days, and you get a notification. Uploading doesn't verify you by itself: until it's approved your account is Pending.</p>
+{% elif vdoc == "failed" %}<p class="box warn vnote" role="alert"><b>Your student document didn't upload.</b> Your account is fine. After you confirm your email, send it again on the <a href="/verify-student">Student verification</a> page.</p>
+{% elif vdoc == "skip" %}<p class="box vnote"><b>Your account stays Pending until a student document is approved.</b> Meanwhile you can apply for up to 3 seats at a time, but you can't publish projects, send invitations or appear in Find teammates. Upload it any time from <a href="/verify-student">Student verification</a>.</p>{% endif %}
 {% if pending %}<form method="post" action="/verify/resend" class="acts" style="justify-content:center"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="ghost">Send the link again</button><a class="btn" href="/login">Back to log in</a></form>
 {% elif show_login %}<p class="acts"><a class="btn" href="/login">Go to log in</a></p>{% endif %}</section>{% endblock %}

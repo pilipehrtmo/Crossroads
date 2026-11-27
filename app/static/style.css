@@ -1257,3 +1257,45 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .rmode{border:1px solid var(--line);border-radius:.6rem;padding:.6rem .8rem;margin:.6rem 0}.rmode legend{font-weight:700;padding:0 .3rem}
 .byline{max-width:100%;min-width:0}.byline .idtags{margin-left:0;max-width:100%}.idt{max-width:100%}
 .meta .idtags,.pmeta .idtags{min-width:0}
+
+/* University and department search: same look as the department picker, red focus ring, two-line bilingual rows */
+.combo{position:relative}
+.combo select.vh{width:1px;min-width:0;max-width:1px;height:1px;padding:0}
+.combo .cbw{position:relative}
+.combo .cbi{padding-right:2.8rem;border:1.5px solid var(--line);border-radius:12px;cursor:text;min-height:2.9rem;
+  background:var(--card) no-repeat right .95rem center/1rem url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2.2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")}
+.combo .cbi:hover{border-color:var(--pri2)}
+.combo .cbi:focus-visible,.combo .cbi:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--pri-soft)}
+.combo .cbx{position:absolute;right:.35rem;top:50%;transform:translateY(-50%);width:2.4rem;height:2.4rem;padding:0;border:0;border-radius:9px;background:var(--card);display:grid;place-items:center;cursor:pointer;color:var(--mut)}
+.combo .cbx svg{width:1rem;height:1rem;stroke:currentColor;stroke-width:2.4;stroke-linecap:round;fill:none}
+.combo .cbx:hover{color:var(--ink);background:var(--soft)}.combo .cbx:focus-visible{outline:2px solid var(--pri);outline-offset:1px}
+.combo .cbl{position:absolute;z-index:30;left:0;right:0;top:calc(100% + 4px);max-height:min(24rem,58vh);overflow-y:auto;overscroll-behavior:contain;
+  background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.3rem;box-shadow:0 12px 32px color-mix(in srgb,var(--shadow) 18%,transparent)}
+.combo .dqg{position:sticky;top:-.3rem;z-index:1;background:var(--card);padding:.5rem .65rem .25rem;font-size:.75rem;font-weight:700;letter-spacing:.04em;color:var(--mut)}
+.combo .cbo{display:grid;grid-template-columns:1fr auto;column-gap:.6rem;align-items:baseline;padding:.55rem .7rem;min-height:2.75rem;border-radius:8px;cursor:pointer;line-height:1.3}
+.combo .cbz{font-weight:600;min-width:0;overflow-wrap:anywhere}
+.combo .cbe{grid-column:1/-1;color:var(--mut);font-size:.88rem;min-width:0;overflow-wrap:anywhere}
+.combo .cbk{font-size:.7rem;font-weight:700;letter-spacing:.05em;color:var(--mut);border:1px solid var(--line);border-radius:6px;padding:.05rem .35rem;white-space:nowrap}
+.combo .cbo.on{background:var(--pri-soft)}.combo .cbo.on .cbz{color:var(--pri-ink)}
+.combo .cbo[aria-selected=true] .cbz::after{content:" ✓";color:var(--pri)}
+.combo .cbtyped{display:block;border-top:1px dashed var(--line);margin-top:.25rem;border-radius:0 0 8px 8px;font-weight:600;color:var(--pri-ink)}
+.combo .dqe{margin:.5rem .7rem;color:var(--mut);font-size:.9rem}
+.combo .cbstate{margin:.35rem 0 0;min-height:1.2em}.combo .cbstate.ok{color:var(--ok-ink,#1f6b45);font-weight:600}.combo .cbstate.warn{color:var(--bad)}
+@media (prefers-reduced-motion:no-preference){.combo .cbl{animation:dqin .12s ease-out}}
+@media (max-width:600px){.combo .cbl{max-height:min(20rem,50vh)}.combo .cbo{min-height:3rem}}
+/* sign-up: the student-status step */
+.vstep{border:1.5px solid var(--line);border-radius:var(--r);padding:1rem 1.1rem;margin:1.1rem 0 .4rem;background:color-mix(in srgb,var(--soft) 45%,var(--card))}
+.vstep h2{font-size:1.05rem;margin:0 0 .25rem}
+.vstep .vchoice{display:flex;gap:.5rem;flex-wrap:wrap;margin:.6rem 0}
+.vstep .vchoice label{flex:1 1 12rem;display:flex;gap:.5rem;align-items:center;border:1.5px solid var(--line);border-radius:10px;padding:.6rem .75rem;cursor:pointer;background:var(--card);margin:0;min-height:2.9rem}
+.vstep .vchoice label:has(input:checked){border-color:var(--pri);box-shadow:0 0 0 2px var(--pri-soft)}
+.vstep .vchoice input{width:auto;margin:0}
+.vdrop{position:relative;display:flex;align-items:center;gap:.75rem;border:1.5px dashed var(--line);border-radius:12px;padding:.85rem 1rem;background:var(--card);min-height:3.4rem}
+.vdrop:hover,.vdrop.drag{border-color:var(--pri)}
+.vdrop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.vdrop input[type=file]:focus-visible+.vdrop-t{outline:2px solid var(--pri);outline-offset:4px;border-radius:6px}
+.vdrop .vdrop-t{min-width:0;overflow-wrap:anywhere}.vdrop .vdrop-t b{display:block}
+.vdrop .vdrop-act{margin-left:auto;position:relative;z-index:2;white-space:nowrap}
+.vprog{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin:.6rem 0 0}.vprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--pri2));transition:width .15s}
+.vskip{margin:.5rem 0 0}
+.vchk{display:flex;gap:.5rem;align-items:center;font-weight:500}.vchk input{width:auto;flex:none}

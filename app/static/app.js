@@ -358,3 +358,189 @@ document.addEventListener("change", e => {
     if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("fytag")) { e.preventDefault(); e.target.click(); }
   });
 })();
+
+/* University and department search (sign-up, profile, admin). The <select> / text box underneath stays the real form
+   field, so the page works without JavaScript. Matching: Chinese or English, any case, 台/臺 treated alike, partial
+   words, the school's own short form (from its web domain, e.g. NTU), and small typos in English words. */
+(function () {
+  const ZH = { "台": "臺", "湾": "灣", "学": "學", "国": "國", "大": "大" };
+  const norm = s => (s || "").normalize("NFKC").toLowerCase().replace(/[台湾学国]/g, c => ZH[c] || c)
+    .replace(/[\s\-–—·.,:;()（）、&/'’"]+/g, " ").trim();
+  const toks = q => norm(q).split(" ").filter(Boolean);
+  function near(a, b) {   // edit distance <= 1 (or 2 for long words): "tsinghua" ~ "tsing hua", "chengkung" ~ ...
+    if (Math.abs(a.length - b.length) > 2) return false;
+    const m = a.length, n = b.length, lim = Math.max(m, n) >= 8 ? 2 : 1; let prev = Array.from({ length: n + 1 }, (_, j) => j);
+    for (let i = 1; i <= m; i++) { const cur = [i]; let best = i;
+      for (let j = 1; j <= n; j++) { cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); best = Math.min(best, cur[j]); }
+      if (best > lim) return false; prev = cur; }
+    return prev[n] <= lim;
+  }
+  function score(it, t, raw) {   // 0 = no match
+    if (!t.length) return 1;
+    const q = norm(raw), qs = q.replace(/ /g, "");
+    if (it.ab && it.ab.split(" ").includes(qs)) return 1000;   // exact short form: NTU -> National Taiwan University
+    let s = 0;
+    if (it.zh && it.zhn.startsWith(qs)) s += 300; else if (it.zh && it.zhn.includes(qs)) s += 220;
+    if (it.enn && it.enn.startsWith(q)) s += 260;
+    if (it.ab && it.ab.split(" ").some(a => a.startsWith(qs))) s += 240;
+    let all = true, fz = 0;
+    for (const w of t) {
+      if (it.hay.includes(w)) { s += it.words.some(x => x.startsWith(w)) ? 40 : 20; continue; }
+      if (w.length >= 3 && it.cmp.includes(w)) { s += 15; continue; }
+      if (w.length >= 4 && it.words.some(x => near(w, x) || (x.length > w.length && near(w, x.slice(0, w.length))))) { fz++; continue; }
+      all = false; break;
+    }
+    if (!all) return s >= 220 ? s : 0;
+    return s + 10 - fz;
+  }
+  function prep(it) {
+    it.zhn = norm(it.zh).replace(/ /g, ""); it.enn = norm(it.en); it.ab = norm(it.ab || "");
+    it.hay = [it.zhn, it.enn, it.ab, norm(it.extra || "")].join(" "); it.words = it.hay.split(" ").filter(Boolean);
+    it.cmp = it.hay.replace(/ /g, "");   // "tsinghua" finds "Tsing Hua", "chengkung" finds "Cheng Kung"
+    return it;
+  }
+
+  /* one listbox engine for both pickers */
+  function Combo(inp, list, live, opts) {
+    let shown = [], act = -1;
+    const word = opts.word || "results";
+    function draw(items, q, extra) {
+      shown = items; list.textContent = "";
+      const frag = document.createDocumentFragment(); let lastG = null;
+      if (!items.length && !extra) { const e = document.createElement("p"); e.className = "dqe"; e.textContent = list.dataset.empty; frag.appendChild(e); }
+      items.forEach((it, i) => {
+        if (opts.group && it.g !== lastG && it.g) { lastG = it.g; const h = document.createElement("div"); h.className = "dqg"; h.setAttribute("role", "presentation"); h.textContent = it.g; frag.appendChild(h); }
+        const d = document.createElement("div"); d.className = "dqo cbo"; d.id = inp.id + "-o" + i; d.setAttribute("role", "option"); d.dataset.i = i;
+        d.setAttribute("aria-selected", it.v === opts.value() ? "true" : "false");
+        const a = document.createElement("span"); a.className = "cbz"; a.textContent = it.zh || it.en; d.appendChild(a);
+        if (it.tag) { const k = document.createElement("span"); k.className = "cbk"; k.textContent = it.tag; d.appendChild(k); }
+        if (it.zh && it.en) { const b = document.createElement("span"); b.className = "cbe"; b.lang = "en"; b.textContent = it.en; d.appendChild(b); }
+        frag.appendChild(d);
+      });
+      if (extra) { const d = document.createElement("div"); d.className = "dqo cbo cbtyped"; d.id = inp.id + "-ot"; d.setAttribute("role", "option"); d.dataset.i = "t";
+        d.textContent = extra; frag.appendChild(d); }
+      list.appendChild(frag);
+      live.textContent = q ? items.length + " " + word : "";
+      const sel = items.findIndex(x => x.v === opts.value());
+      move(q ? 0 : Math.max(0, sel), !q);
+    }
+    function move(i, center) {
+      const o = list.querySelectorAll(".cbo"); o.forEach(x => x.classList.remove("on"));
+      if (!o.length) { act = -1; inp.removeAttribute("aria-activedescendant"); return; }
+      act = (i + o.length) % o.length; o[act].classList.add("on"); inp.setAttribute("aria-activedescendant", o[act].id);
+      if (center) list.scrollTop = Math.max(0, o[act].offsetTop - list.clientHeight / 2); else o[act].scrollIntoView({ block: "nearest" });
+    }
+    const isOpen = () => !list.hidden;
+    function open() { list.hidden = false; inp.setAttribute("aria-expanded", "true"); }
+    function close() { list.hidden = true; inp.setAttribute("aria-expanded", "false"); inp.removeAttribute("aria-activedescendant"); live.textContent = ""; }
+    function pickAct() { const o = list.querySelectorAll(".cbo")[act]; if (o) opts.pick(o.dataset.i === "t" ? "t" : shown[+o.dataset.i]); }
+    inp.addEventListener("keydown", e => {
+      if (e.key === "ArrowDown") { e.preventDefault(); if (!isOpen()) opts.refresh(true); else move(act + 1); }
+      else if (e.key === "ArrowUp") { e.preventDefault(); if (isOpen()) move(act - 1); }
+      else if (e.key === "Enter") { if (isOpen() && act >= 0) { e.preventDefault(); pickAct(); } }
+      else if (e.key === "Escape") { if (isOpen()) { e.preventDefault(); opts.cancel(); } }
+      else if (e.key === "Tab") { if (isOpen()) opts.cancel(true); }
+    });
+    list.addEventListener("mousedown", e => e.preventDefault());
+    list.addEventListener("click", e => { const o = e.target.closest(".cbo"); if (o) opts.pick(o.dataset.i === "t" ? "t" : shown[+o.dataset.i]); });
+    inp.addEventListener("blur", () => setTimeout(() => { if (document.activeElement !== inp && isOpen()) opts.cancel(true); }, 0));
+    return { draw, open, close, isOpen };
+  }
+
+  /* university: enhances <select name=institution> */
+  function school(box) {
+    if (box.dataset.cb) return; box.dataset.cb = "1";
+    const sel = box.querySelector("select"), wrap = box.querySelector(".cbw"), inp = wrap.querySelector(".cbi"), list = wrap.querySelector(".cbl"),
+      live = wrap.querySelector("[data-n]"), clr = wrap.querySelector(".cbx"), lab = box.querySelector("label");
+    const zhUI = document.documentElement.lang && document.documentElement.lang.startsWith("zh");
+    const items = [...sel.options].filter(o => o.value).map(o => prep({ v: o.value, zh: o.dataset.zh || o.textContent, en: o.dataset.en || "", ab: o.dataset.a || "" }));
+    items.forEach(it => { if (it.ab) it.tag = it.ab.toUpperCase(); });
+    sel.classList.add("vh"); sel.tabIndex = -1; sel.setAttribute("aria-hidden", "true"); wrap.hidden = false; if (lab) lab.htmlFor = inp.id;
+    const label = it => it ? (zhUI || !it.en ? it.zh + (it.en ? " · " + it.en : "") : it.en + " · " + it.zh) : "";
+    const cur = () => items.find(x => x.v === sel.value);
+    const showCur = () => { inp.value = label(cur()); clr.hidden = !sel.value; };
+    let c;
+    function refresh(all) {
+      const q = all ? "" : inp.value, t = toks(q);
+      let res = items;
+      if (t.length) res = items.map(it => [score(it, t, q), it]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0] || a[1].v.localeCompare(b[1].v)).map(x => x[1]);
+      c.open(); c.draw(res, t.length ? q : "");
+    }
+    c = Combo(inp, list, live, {
+      word: (wrap.querySelector("[data-results]") || {}).textContent, value: () => sel.value, refresh,
+      pick: it => { if (!it || it === "t") return; const ch = sel.value !== it.v; sel.value = it.v; c.close(); showCur(); if (ch) sel.dispatchEvent(new Event("change", { bubbles: true })); },
+      cancel: () => { c.close(); showCur(); },
+    });
+    inp.addEventListener("focus", () => { inp.select(); refresh(true); });
+    inp.addEventListener("click", () => { if (!c.isOpen()) { inp.select(); refresh(true); } });
+    inp.addEventListener("input", () => { clr.hidden = !inp.value; refresh(false); });
+    clr.addEventListener("click", () => { sel.value = ""; if (![...sel.options].some(o => o.value === "")) { const o = new Option("", ""); sel.add(o, 0); sel.value = ""; }
+      sel.dispatchEvent(new Event("change", { bubbles: true })); inp.value = ""; clr.hidden = true; inp.focus(); });
+    sel.addEventListener("change", showCur);
+    showCur();
+  }
+
+  /* department: a text box (the typed fallback) + a hidden official key, list loaded for the chosen school only */
+  const cache = {};
+  function unit(box) {
+    if (box.dataset.cb) return; box.dataset.cb = "1";
+    const key = box.querySelector("[data-key]"), wrap = box.querySelector(".cbw"), inp = wrap.querySelector(".cbi"), list = wrap.querySelector(".cbl"),
+      live = wrap.querySelector("[data-n]"), clr = wrap.querySelector(".cbx"), st = box.querySelector("[data-state]");
+    const L = n => (box.querySelector("[data-l-" + n + "]") || {}).textContent || "";
+    const K = k => (box.querySelector("[data-k-" + k + "]") || {}).textContent || "";
+    const zhUI = document.documentElement.lang && document.documentElement.lang.startsWith("zh");
+    inp.setAttribute("role", "combobox"); inp.setAttribute("aria-autocomplete", "list"); inp.setAttribute("aria-expanded", "false"); inp.setAttribute("aria-controls", list.id);
+    let items = [], inst = box.dataset.inst || "", loading = false, picked = key.value;
+    const label = it => zhUI || !it.en ? it.zh + (it.en ? " · " + it.en : "") : it.en + " · " + it.zh;
+    function state() {
+      clr.hidden = !inp.value;
+      if (loading) { st.textContent = L("loading"); st.className = "cbstate fine muted"; return; }
+      if (key.value) { st.textContent = "✓ " + L("official"); st.className = "cbstate fine ok"; }
+      else if (inp.value.trim().length >= 2) { st.textContent = items.length ? L("own") : L(inst ? "none" : "own"); st.className = "cbstate fine muted"; }
+      else { st.textContent = inst && !items.length && !loading ? L("none") : ""; st.className = "cbstate fine muted"; }
+    }
+    async function load(code) {
+      inst = code; items = []; if (!code || code === "0002") { state(); return; }   // NTHU: its own reviewed department picker
+      if (cache[code]) { items = cache[code]; state(); return; }
+      loading = true; state();
+      try {
+        const r = await fetch("/api/units/" + encodeURIComponent(code), { headers: { "Accept": "application/json" }, credentials: "same-origin" });
+        const j = r.ok ? await r.json() : { units: [] };
+        if (inst !== code) return;   // the school changed while this was loading
+        items = cache[code] = (j.units || []).map(u => prep({ v: u.k, zh: u.zh, en: u.en, g: u.col + (u.col_en ? " · " + u.col_en : ""), extra: u.col, tag: K(u.kind) }));
+        loading = false; state();
+        if (key.value && !items.some(x => x.v === key.value)) { key.value = ""; state(); }   // never keep a key from another school
+      } catch (e) { loading = false; items = []; st.textContent = L("fail"); st.className = "cbstate fine warn"; }
+    }
+    let c;
+    function refresh(all) {
+      if (!items.length) { c.close(); state(); return; }
+      const q = all || key.value ? "" : inp.value, t = toks(q);
+      let res = items;
+      if (t.length) res = items.map(it => [score(it, t, q), it]).filter(x => x[0] > 0).sort((a, b) => b[0] - a[0]).map(x => x[1]);
+      const typed = t.length && inp.value.trim().length >= 2 && !res.some(x => norm(x.zh) === norm(inp.value) || norm(x.en) === norm(inp.value)) ? L("typed") + ": “" + inp.value.trim() + "”" : "";
+      c.open(); c.draw(res.slice(0, 200), t.length ? q : "", typed);
+    }
+    c = Combo(inp, list, live, {
+      word: (wrap.querySelector("[data-results]") || {}).textContent, group: true, value: () => key.value, refresh,
+      pick: it => { if (it === "t") { key.value = ""; } else { key.value = it.v; inp.value = label(it); } picked = key.value; c.close(); state(); },
+      cancel: () => { c.close(); state(); },
+    });
+    inp.addEventListener("focus", () => { if (key.value) inp.select(); refresh(true); });
+    inp.addEventListener("input", () => { if (key.value) key.value = ""; refresh(false); state(); });   // editing the name makes it a typed one
+    clr.addEventListener("click", () => { key.value = ""; inp.value = ""; state(); inp.focus(); });
+    box.addEventListener("unitpick:school", e => { if (e.detail !== inst) { key.value = ""; inp.value = ""; } load(e.detail); });
+    load(inst); state();
+  }
+  function all() {
+    document.querySelectorAll("[data-schoolpick]").forEach(school);
+    document.querySelectorAll("[data-unitpick]").forEach(unit);
+  }
+  /* the department list follows the university chosen in the same form */
+  document.addEventListener("change", e => {
+    if (!e.target.matches || !e.target.matches("[data-schoolpick] select")) return;
+    const f = e.target.form; if (!f) return;
+    f.querySelectorAll("[data-unitpick]").forEach(b => b.dispatchEvent(new CustomEvent("unitpick:school", { detail: e.target.value })));
+  });
+  document.addEventListener("DOMContentLoaded", all); document.addEventListener("htmx:afterSettle", all); all();
+})();

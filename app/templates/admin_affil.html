@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% from "_school.html" import unit_picker with context %}{% block body %}<p class="muted"><a href="/admin">← Admin</a></p>
+<h1>Affiliations to check</h1>
+<p class="muted">Students of other universities whose department was typed instead of picked from their school's official list, or whose student ID format we don't know yet. Linking a department or confirming it never changes the person's university or student ID.</p>
+{% if notice == "done" %}<p class="box ok" role="status">Saved.</p>{% elif notice == "nounit" %}<p class="err" role="alert">That department isn't in this university's list. Pick one from the list, or keep the typed name.</p>{% endif %}
+{% if not rows %}<p class="box">Nothing to check right now.</p>{% endif %}
+{% for a in rows %}{% set p = people.get(a.user_id) %}{% set i = insts.get(a.institution_id) %}
+<form method="post" action="/admin/affiliations/{{ a.id }}" class="card affrow"><input type="hidden" name="csrf" value="{{ csrf }}">
+<p class="affh"><b>{{ p.name if p else "?" }}</b> {% if p %}{{ idtags(p, lang) }}{% endif %}<small class="muted"> · {{ a.degree or "—" }} · ID {{ a.student_id or "—" }} · since {{ a.created|ago }}</small></p>
+<p class="fine">{{ keep(i.name_zh) if i else "?" }}{% if i and i.name_en %} · {{ keep(i.name_en) }}{% endif %}</p>
+{% if "unit" in a.review %}<p class="fine">Typed department: <b>{{ keep(a.unit_text) or "—" }}</b></p>
+{{ unit_picker(i.moe_code if i else "", key="", text="", wid="u" ~ a.id, required=False) }}
+<p class="formacts"><button name="action" value="link">Link to this department</button><button class="ghost" name="action" value="keep">Keep it as typed</button></p>{% endif %}
+{% if "id_format" in a.review %}<p class="fine">Student ID format not documented for this school. Check it against the student's document.</p><p class="formacts"><button class="ghost" name="action" value="id_ok">ID checked</button></p>{% endif %}
+</form>{% endfor %}{% endblock %}

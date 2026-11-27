@@ -1,0 +1,29 @@
+{# Searchable university and department pickers. Without JavaScript they are a plain <select> and a plain text box,
+   so the form always works; with it they become comboboxes (type Chinese or English, arrows, Enter, Escape). #}
+{% macro school_picker(schools, cur="0002", name="institution", wid="inst", label="University or college") %}<div class="combo schoolpick" data-schoolpick>
+<label for="{{ wid }}" id="{{ wid }}-lab">{{ label }}</label><input type="hidden" name="inst_field" value="1">
+<select id="{{ wid }}" name="{{ name }}" aria-describedby="{{ wid }}-h">{% if not cur %}<option value="">Choose…</option>{% endif %}
+{% for x in schools %}<option value="{{ x.c }}" data-zh="{{ x.zh }}" data-en="{{ x.en }}" data-a="{{ x.a }}" {{ "selected" if x.c == cur }}>{{ keep(x.zh) }}{% if x.en %} · {{ keep(x.en) }}{% endif %}</option>
+{% endfor %}</select>
+<div class="cbw" hidden><input class="cbi" id="{{ wid }}-q" type="text" data-opt role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="{{ wid }}-l" aria-describedby="{{ wid }}-h" autocomplete="off" spellcheck="false" autocapitalize="none" enterkeyhint="search" placeholder="Search in Chinese or English, e.g. 清華, NTU, Cheng Kung">
+<button type="button" class="cbx" aria-label="Clear university" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+<div class="cbl" id="{{ wid }}-l" role="listbox" aria-labelledby="{{ wid }}-lab" hidden data-empty="No university or college matches that. Try its Chinese name, its English name or its short form (e.g. NCKU)."></div>
+<span class="vh" aria-live="polite" data-n></span><span hidden data-results>results</span></div>
+<p class="muted fine" id="{{ wid }}-h">All 139 universities and colleges in the Ministry of Education directory. Official Chinese and English names.</p>
+</div>{% endmacro %}
+
+{% macro unit_picker(inst_code, key="", text="", wid="ut", required=True) %}<div class="combo unitpick" data-unitpick data-inst="{{ inst_code }}">
+<label for="{{ wid }}" id="{{ wid }}-lab">Department or program</label>
+<input type="hidden" name="unit_key" value="{{ key }}" data-key>
+<div class="cbw"><input id="{{ wid }}" name="unit_text" class="cbi" type="text" maxlength="80" value="{{ text }}" {{ "required" if required }} autocomplete="off" spellcheck="false" aria-describedby="{{ wid }}-h {{ wid }}-st" placeholder="Search or type, e.g. 資訊工程學系, Electrical Engineering">
+<button type="button" class="cbx" aria-label="Clear department" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+<div class="cbl" id="{{ wid }}-l" role="listbox" aria-labelledby="{{ wid }}-lab" hidden data-empty="Not in your school’s official list. Keep typing and choose “Use what I typed”."></div>
+<span class="vh" aria-live="polite" data-n></span><span hidden data-results>results</span>
+<span hidden data-l-loading>Loading your school’s departments…</span><span hidden data-l-typed>Use what I typed</span>
+<span hidden data-l-official>From the official list</span><span hidden data-l-own>Typed by you · an admin checks it</span>
+<span hidden data-l-none>We don’t have this school’s department list yet. Type your department as your school names it; an admin checks it.</span>
+<span hidden data-l-fail>Couldn’t load the department list. Type your department; an admin checks it.</span>
+{% for k, v in {"department": "Department", "institute": "Graduate institute", "program": "Degree programme", "other": "Unit"}.items() %}<span hidden data-k-{{ k }}>{{ v }}</span>{% endfor %}</div>
+<p class="cbstate fine" id="{{ wid }}-st" data-state aria-live="polite"></p>
+<p class="muted fine" id="{{ wid }}-h">Pick it from your school’s official list (Ministry of Education), in Chinese or English. Not listed? Type it as your school names it.</p>
+</div>{% endmacro %}
