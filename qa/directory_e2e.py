@@ -63,6 +63,8 @@ with sync_playwright() as p:
         ok(pg.input_value("#inst") == "0005", f"[{lang}] keyboard Enter stores moe_code 0005 (got {pg.input_value('#inst')})")
         ok(pg.is_visible("#ut") and pg.is_hidden("#dsel") if pg.query_selector("#dsel") else pg.is_visible("#ut"), f"[{lang}] non-NTHU shows the department search")
         pg.wait_for_function("document.querySelector('#ut-st') && !/Loading|載入/.test(document.querySelector('#ut-st').textContent)", timeout=8000)
+        pg.click("#lf .kind:has(input[value=faculty])"); pg.click("#lf .kind:has(input[value=student])"); pg.wait_for_timeout(200)
+        ok(pg.is_hidden("#dpw") and pg.is_visible("#ut"), f"[{lang}] after switching Professor/Student the NTHU department list stays hidden for NCKU")
         pg.click("#ut"); pg.type("#ut", "資訊", delay=20); pg.wait_for_timeout(150)
         u = pg.eval_on_selector_all("#ut-l .cbo", "els => els.map(e => e.textContent)")
         ok(len(u) >= 2, f"[{lang}] department search '資訊' at NCKU -> {len(u)} options")

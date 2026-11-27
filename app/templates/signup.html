@@ -20,10 +20,15 @@
 <p class="muted fine">Shown on your profile and used to filter projects by department. You can change it later.</p></div>
 {% if multi_school %}<div class="r-student r-other" hidden>{{ unit_picker(f.get("institution", "0002") or "0002", key=f.get("unit_key", ""), text=f.get("unit_text", ""), required=False) }}</div>
 <script>(()=>{const i=document.getElementById("inst"),s=document.getElementById("s"),h=document.getElementById("sidh");if(!i||!s)return;
-const sync=()=>{const n=i.value==="0002"||!i.value;document.querySelectorAll(".r-nthu").forEach(e=>e.hidden=!n);document.querySelectorAll(".r-other").forEach(e=>{e.hidden=n||document.querySelector("input[name=role]:checked")?.value==="faculty"});
+const dp=document.getElementById("dp"),dl=document.createElement("datalist");dl.id="unitlist";document.body.appendChild(dl);const cache={};
+const units=async c=>{if(cache[c])return cache[c];try{const r=await fetch("/api/units/"+encodeURIComponent(c));cache[c]=r.ok?(await r.json()).units||[]:[]}catch(e){cache[c]=[]}return cache[c]};
+const sync=async()=>{const n=i.value==="0002"||!i.value,fac=document.querySelector("input[name=role]:checked")?.value==="faculty";
+ /* departments always follow the chosen university: NTHU's own list for NTHU, that school's official list for every other one */
+ document.querySelectorAll(".r-nthu").forEach(e=>e.hidden=!n||fac);document.querySelectorAll(".r-other").forEach(e=>e.hidden=n||fac);
+ if(dp){if(n)dp.setAttribute("list","colleges");else{dp.setAttribute("list","unitlist");const c=i.value,u=c?await units(c):[];if(i.value===c){dl.textContent="";u.forEach(x=>{const o=document.createElement("option");o.value=x.zh+(x.en?" · "+x.en:"");dl.appendChild(o)})}}}
  if(n){s.setAttribute("pattern","[0-9]{9}");s.minLength=9;s.maxLength=9;s.inputMode="numeric";h.textContent={{ "9 digits, as on your student card."|tr|tojson }}}
  else{s.setAttribute("pattern","[A-Za-z0-9-]{4,20}");s.minLength=4;s.maxLength=20;s.inputMode="text";h.textContent={{ "As printed on your student card. An admin checks it."|tr|tojson }}}};
-i.addEventListener("change",sync);document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})()</script>{% endif %}
+window.schoolSync=sync;i.addEventListener("change",sync);document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})()</script>{% endif %}
 <div class="r-faculty" hidden>
 <label for="pg">Official faculty page on your university's website <small class="muted">(recommended)</small></label><input id="pg" name="page" type="url" value="{{ f.get('page', '') }}" placeholder="https://….nthu.edu.tw/…">
 <p class="muted fine">Your entry on your department's faculty list, or your page on nthu.edu.tw. We open it and compare your name, title, department and email with what it shows. If you don't have one yet, leave it empty and add a note below.</p>
@@ -54,7 +59,8 @@ i.addEventListener("change",sync);document.querySelectorAll("input[name=role]").
 <script>
 (()=>{const sync=()=>{const fac=document.querySelector("input[name=role]:checked").value==="faculty";
  document.querySelectorAll(".r-faculty").forEach(e=>e.hidden=!fac);document.querySelectorAll(".r-student").forEach(e=>{e.hidden=fac;const i=e.querySelector("input:not([data-opt])");if(i)i.required=!fac});document.getElementById("dp").required=fac;const ti=document.getElementById("ti"),tw=document.getElementById("tiow");tw.hidden=!fac||ti.value!=="Other academic appointment";document.getElementById("tio").required=!tw.hidden;
- document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"Institutional email":"Email"};
+ document.getElementById("ehint").hidden=!fac;document.getElementById("elabel").textContent=fac?"Institutional email":"Email";
+ if(window.schoolSync)window.schoolSync()};   // the department field shown must match the university, whatever the role
  document.getElementById("ti").addEventListener("change",sync);
  document.querySelectorAll("input[name=role]").forEach(r=>r.addEventListener("change",sync));sync()})();
 </script>
