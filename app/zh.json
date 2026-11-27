@@ -2040,6 +2040,7 @@
     "Your account has no university on record yet, so professor-led research can't say whose students may join. Ask an admin to add your affiliation, or choose student-led.": "你的帳號還沒有登記學校，所以教授主導的研究無法標明哪所學校的學生可以加入。請管理員加上你的所屬學校，或選擇學生主導。",
     "Choose the university this research belongs to. Only its students will be able to join.": "請選擇這個研究所屬的學校。只有該校學生可以加入。",
     "Your account has no university on record yet, so a research position can't say whose students may apply. Ask an admin to add your affiliation.": "你的帳號還沒有登記學校，所以研究職位無法標明哪所學校的學生可以申請。請管理員加上你的所屬學校。",
-    "Choose the university this position belongs to. Only its students will be able to apply.": "請選擇這個職位所屬的學校。只有該校學生可以申請。"
+    "Choose the university this position belongs to. Only its students will be able to apply.": "請選擇這個職位所屬的學校。只有該校學生可以申請。",
+    "e.g. Department of Psychology": "例如：心理學系"
   }
 }
