@@ -1,0 +1,149 @@
+0001|國立政治大學|National Chengchi University|http://www.nccu.edu.tw
+0002|國立清華大學|National Tsing Hua University|http://www.nthu.edu.tw
+0003|國立臺灣大學|National Taiwan University|http://www.ntu.edu.tw
+0004|國立臺灣師範大學|National Taiwan Normal University|http://www.ntnu.edu.tw
+0005|國立成功大學|National Cheng Kung University|https://www.ncku.edu.tw/
+0006|國立中興大學|National Chung Hsing University|http://www.nchu.edu.tw/index1.php
+0007|國立陽明交通大學|National Yang Ming Chiao Tung University|https://www.nycu.edu.tw/
+0008|國立中央大學|National Central University|http://www.ncu.edu.tw
+0009|國立中山大學|National Sun Yat-sen University|http://www.nsysu.edu.tw
+0012|國立臺灣海洋大學|National Taiwan Ocean University|http://www.ntou.edu.tw
+0013|國立中正大學|National Chung Cheng University|https://www.ccu.edu.tw/
+0014|國立高雄師範大學|National Kaohsiung Normal University|http://www.nknu.edu.tw
+0015|國立彰化師範大學|National Changhua University of Education|http://www.ncue.edu.tw
+0017|國立臺北大學|National Taipei University|http://www.ntpu.edu.tw/
+0018|國立嘉義大學|National Chiayi University|https://www.ncyu.edu.tw
+0019|國立高雄大學|National University of Kaohsiung|http://www.nuk.edu.tw
+0020|國立東華大學|National Dong Hwa University|https://www.ndhu.edu.tw
+0021|國立暨南國際大學|National Chi Nan University|https://www.ncnu.edu.tw
+0022|國立臺灣科技大學|National Taiwan University of Science and Technology|https://www.ntust.edu.tw/home.php
+0023|國立雲林科技大學|National Yunlin University of Science & Technology|https://www.yuntech.edu.tw/
+0024|國立屏東科技大學|National Pingtung University of Science and Technology|https://www.npust.edu.tw/
+0025|國立臺北科技大學|National Taipei University of Technology|https://www.ntut.edu.tw/
+0028|國立臺北藝術大學|Taipei National University of the Arts|https://w3.tnua.edu.tw/
+0029|國立臺灣藝術大學|National Taiwan University of Arts|http://www.ntua.edu.tw
+0030|國立臺東大學|National Taitung University|http://www.nttu.edu.tw
+0031|國立宜蘭大學|National Ilan University|http://www.niu.edu.tw
+0032|國立聯合大學|National United University|http://www.nuu.edu.tw
+0033|國立虎尾科技大學|National Formosa University|https://www.nfu.edu.tw/zh/
+0035|國立臺南藝術大學|Tainan National University of the Arts|http://www.tnnua.edu.tw
+0036|國立臺南大學|National University of Tainan|https://www.nutn.edu.tw
+0037|國立臺北教育大學|National Taipei University of Education|http://www.ntue.edu.tw
+0039|國立臺中教育大學|National Taichung University of Education|http://www.ntcu.edu.tw
+0042|國立澎湖科技大學|National Penghu University of Science and Technology|https://www.npu.edu.tw/home.aspx
+0043|國立勤益科技大學|National Chin-Yi University of Technology|https://www.ncut.edu.tw/
+0044|國立體育大學|National Taiwan Sport University|http://www.ntsu.edu.tw
+0046|國立臺北護理健康大學|National Taipei University of Nursing and Health Sciences|https://www.ntunhs.edu.tw/
+0047|國立高雄餐旅大學|National Kaohsiung University of Hospitality and Tourism|https://www.nkuht.edu.tw/
+0048|國立金門大學|National Quemoy University|https://www.nqu.edu.tw
+0049|國立臺灣體育運動大學|National Taiwan University of Sport|https://www.ntus.edu.tw
+0050|國立臺中科技大學|National  Taichung University Of  Science And Technology|https://www.nutc.edu.tw/
+0051|國立臺北商業大學|National Taipei University of  Business|https://www.ntub.edu.tw
+0052|國立屏東大學|National Pingtung University|https://www.nptu.edu.tw
+0053|國立高雄科技大學|National Kaohsiung University of Science and Technology|https://www.nkust.edu.tw
+0144|國立臺灣戲曲學院|National Taiwan College of Performing Arts|https://www.tcpa.edu.tw/
+0221|國立臺南護理專科學校|National Tainan Junior College of Nursing|https://www.ntin.edu.tw/
+0222|國立臺東專科學校|National Taitung Junior College|https://www.ntc.edu.tw/
+0A01|國立空中大學|National Open University|http://www.nou.edu.tw/
+1001|東海大學|Tunghai University|http://www.thu.edu.tw
+1002|輔仁大學學校財團法人輔仁大學|Fu Jen Catholic University|http://www.fju.edu.tw
+1003|東吳大學|Soochow University|http://www.scu.edu.tw
+1004|中原大學|Chung Yuan Christian University|https://www.cycu.edu.tw
+1005|淡江大學學校財團法人淡江大學|Tamkang University|http://www.tku.edu.tw
+1006|中國文化大學|Chinese Culture University|http://www.pccu.edu.tw
+1007|逢甲大學|Feng Chia University|https://www.fcu.edu.tw/
+1008|靜宜大學|Providence University|https://www.pu.edu.tw
+1009|長庚大學|Chang Gung University|http://www.cgu.edu.tw
+1010|元智大學|Yuan Ze University|http://www.yzu.edu.tw
+1011|中華大學學校財團法人中華大學|Chung Hua University|https://www1.chu.edu.tw/
+1012|大葉大學|Da-Yeh University|https://www.dyu.edu.tw/
+1013|華梵學校財團法人華梵大學|Huafan University|http://www.hfu.edu.tw
+1014|義守大學|I-Shou University|http://www.isu.edu.tw
+1015|世新大學|Shih Hsin University|https://www.shu.edu.tw
+1016|銘傳大學|Ming Chuan University|http://www.mcu.edu.tw
+1017|實踐大學|Shih Chien University|http://www.usc.edu.tw
+1018|朝陽科技大學|Chaoyang University of Technology|https://web.cyut.edu.tw
+1019|高雄醫學大學|Kaohsiung Medical University|https://www.kmu.edu.tw/
+1020|南華大學|Nanhua university|http://www.nhu.edu.tw
+1021|真理大學|Aletheia University|https://www.au.edu.tw
+1022|大同大學|Tatung University|http://www.ttu.edu.tw
+1023|南臺學校財團法人南臺科技大學|Southern Taiwan University of Science and Technology|https://www.stust.edu.tw
+1024|崑山科技大學|Kun Shan University|https://www.ksu.edu.tw/
+1025|嘉藥學校財團法人嘉南藥理大學|Chia Nan University of Pharmacy & Science|https://www.cnu.edu.tw/
+1026|樹德科技大學|Shu-Te University|https://www.stu.edu.tw/
+1027|慈濟學校財團法人慈濟大學|Tzu Chi University|http://www.tcu.edu.tw
+1028|臺北醫學大學|Taipei Medical University|http://www.tmu.edu.tw
+1029|中山醫學大學|Chung Shan Medical University|https://www.csmu.edu.tw/
+1030|龍華科技大學|Lunghwa University of Science and Technology|https://www.lhu.edu.tw
+1031|輔英科技大學|Fooyin University|https://www.fy.edu.tw/
+1032|明新學校財團法人明新科技大學|Minghsin University of Science and Technology|https://www.must.edu.tw/
+1033|長榮大學|Chang Jung Christian University|http://www.cjcu.edu.tw
+1034|弘光科技大學|Hungkuang University|https://www.hk.edu.tw
+1035|中國醫藥大學|China Medical University|http://www.cmu.edu.tw
+1036|健行學校財團法人健行科技大學|Chien Hsin University of Science and Technology|https://www.uch.edu.tw/index.htm
+1037|正修學校財團法人正修科技大學|Cheng Shiu University|https://www.csu.edu.tw
+1038|萬能學校財團法人萬能科技大學|Vanung University|https://www.vnu.edu.tw/
+1039|玄奘大學|Hsuan Chuang University|http://www.hcu.edu.tw
+1040|建國科技大學|Chienkuo Technology University|https://www.ctu.edu.tw/
+1041|明志科技大學|Ming Chi University of Technology|https://www.mcut.edu.tw
+1042|台鋼學校財團法人台鋼科技大學|Taiwan Steel University of Science and Technology|https://www.tsust.edu.tw
+1043|大仁科技大學|Tajen University|https://www.tajen.edu.tw/
+1044|聖約翰科技大學|St. John’s University|https://www.sju.edu.tw
+1045|嶺東科技大學|Ling Tung University|https://www.ltu.edu.tw/
+1046|中國科技大學|China University of Technology|https://www.cute.edu.tw/
+1047|中臺科技大學|Central Taiwan University of Science and Technology|https://www.ctust.edu.tw/
+1048|亞洲大學|Asia University|http://www.asia.edu.tw
+1049|開南大學|Kainan University|http://www.knu.edu.tw
+1050|佛光大學|Fo Guang University|http://www.fgu.edu.tw
+1051|台南家專學校財團法人台南應用科技大學|Tainan University of Technology|https://www.tut.edu.tw
+1052|中信金學校財團法人中信科技大學|CTBC UNIVERSITY OF TECHNOLOGY|https://www.ctbctech.edu.tw
+1053|光宇學校財團法人元培醫事科技大學|Yuanpei University of Medical Technology|https://www.ypu.edu.tw/index.php
+1054|景文科技大學|Jinwen University of Science and Technology|https://www.just.edu.tw
+1055|中華醫事科技大學|Chung Hwa University of Medical Technology|https://www.hwai.edu.tw/index.php
+1056|東南科技大學|Tungnan University|https://www.tnu.edu.tw/
+1057|德明財經科技大學|Takming University of Science and Technology|https://www.takming.edu.tw/
+1060|南開科技大學|Nan Kai University of Technology|https://www.nkut.edu.tw/index.php
+1061|中華學校財團法人中華科技大學|China University of Science and Technology|https://www.cust.edu.tw
+1062|僑光科技大學|Overseas Chinese University|https://www.ocu.edu.tw/index.php
+1063|廣亞學校財團法人育達科技大學|Yu Da University of Science and Technology|https://www.ydu.edu.tw/
+1064|美和學校財團法人美和科技大學|Meiho University|https://www.meiho.edu.tw/
+1065|吳鳳科技大學|WuFeng University|https://www.wfu.edu.tw
+1069|修平學校財團法人修平科技大學|Hsiuping University of Science and Technology|https://www.hust.edu.tw/
+1070|長庚學校財團法人長庚科技大學|Chang Gung University of Science and Technology|https://www.cgust.edu.tw
+1071|城市學校財團法人臺北城市科技大學|Taipei City University of Science and Technology|https://www.tpcu.edu.tw/bin/home.php
+1072|大華學校財團法人敏實科技大學|Minth University of Science and Technology|https://www.mitust.edu.tw/
+1073|醒吾學校財團法人醒吾科技大學|Hsing Wu University of Science and Technology|https://www.hwu.edu.tw/
+1075|文藻學校財團法人文藻外語大學|Wenzao Ursuline University of Languages|https://a001.wzu.edu.tw/
+1076|華夏學校財團法人華夏科技大學|Hwa Hsia University of Technology|https://www.hwh.edu.tw/bin/hwhhome.php
+1078|致理學校財團法人致理科技大學|Chihlee University of Technology|https://www.chihlee.edu.tw/
+1079|康寧學校財團法人康寧大學|University of Kang Ning|http://www.ukn.edu.tw
+1080|宏國學校財團法人宏國德霖科技大學|Hungkuo Delin University of Technology|https://w5.hdut.edu.tw/app/home.php
+1082|崇右學校財團法人崇右影藝科技大學|Chungyu University of Film and Arts|https://www.cufa.edu.tw
+1083|台北海洋學校財團法人台北海洋科技大學|Taipei University of Marine Technology|https://www.tumt.edu.tw/
+1084|亞東學校財團法人亞東科技大學|Asia Eastern University of Science and Technology|https://www.aeust.edu.tw/
+1085|馬偕學校財團法人馬偕醫學大學|MacKay Medical University|http://www.mmu.edu.tw
+1125|中信學校財團法人中信金融管理學院|CTBC Business School|http://www.ctbc.edu.tw/
+1168|南亞科技學校財團法人南亞技術學院|Nanya Institute of Technology|https://www.nanya.edu.tw
+1183|黎明技術學院|Lee-Ming Institute of Technology|https://www.lit.edu.tw/
+1185|德育學校財團法人德育護理健康學院|Deh Yu College of Nursing and Health|https://www.dyhu.edu.tw/
+1196|法鼓學校財團法人法鼓文理學院|Dharma Drum Institute of Liberal Art|http://www.dila.edu.tw/
+1282|馬偕學校財團法人馬偕醫護管理專科學校|MacKay Junior College of Medicine, Nursing, and Management|https://www.mkc.edu.tw/
+1283|仁德醫護管理專科學校|Jen-Teh Junior College of Medicine, Nursing and Management|https://www.jente.edu.tw/
+1284|樹人醫護管理專科學校|Shu-Zen Junior College of Medicine and Management|https://www.szmc.edu.tw/
+1285|慈惠醫護管理專科學校|TZU HUI Institute of Technology|https://www.tzuhui.edu.tw/home
+1286|耕莘健康管理專科學校|Cardinal Tien Junior College of Healthcare And Management|https://www.ctcn.edu.tw
+1287|敏惠醫護管理專科學校|Min-Hwei Junior College of Health Care Management|https://www.mhchcm.edu.tw
+1289|育英醫護管理專科學校|Yuh-Ing Junior College of Health Care & Management|https://www.yuhing.edu.tw
+1291|聖母醫護管理專科學校|St. Mary''s Junior College of Medicine, Nursing and Management|https://www.smc.edu.tw/nss/p/index
+1292|新生學校財團法人新生醫護管理專科學校|Hsin Sheng Junior College of Medical Care and Management|https://www.hsc.edu.tw
+1293|崇仁醫護管理專科學校|Chung-Jen Junior College of Nursing, Health Sciences and Management|https://www.cjc.edu.tw/
+1R02|學校財團法人中華浸信會基督教台灣浸會神學院|Taiwan Baptist Christian Seminary|http://www.tbts.edu.tw/
+1R03|臺北基督學院|Christ''s College Taipei|http://www.cct.edu.tw
+1R05|台神學校財團法人台灣神學研究學院|Taiwan Graduate School of Theology|http://www.tgst.edu.tw
+1R06|一貫道崇德學院|I.K.T. Chong-De School|http://www.iktcds.edu.tw/
+1R07|台灣基督長老教會南神神學院|Tainan Theological College|http://www.ttcs.edu.tw/
+1R08|基督教華神學校財團法人中華福音神學研究學院|China Evangelical Graduate School of Theology|http://wp.ces.org.tw/
+1R09|唯心聖教學院|Weixin Shengjiao College|https://www.wxsjc.edu.tw/
+1R10|福智學校財團法人福智佛教學院|Bliss and Wisdom Buddhist College|https://bwbc.blisswisdom.org/
+3002|臺北市立大學|University of Taipei|http://www.utaipei.edu.tw/
+3A01|高雄市立空中大學|Open University of Kaohsiung|http://www.ouk.edu.tw
