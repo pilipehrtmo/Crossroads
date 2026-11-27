@@ -20,7 +20,7 @@
 <button class="sm">Filter</button></form>
 <p class="muted fine">Invitations today: {{ sent }} of {{ per_day }} · waiting on this seat: {{ pend }} of {{ per_seat }}</p>
 {% for x in rows %}{% set u = x.u %}<article class="card cand">
-<div class="cand-top">{{ pic(u, "av") }}<div class="cand-main"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{% if u.verified %}<span class="vchk" title="Verified student" aria-label="Verified">✔</span>{% endif %}
+<div class="cand-top">{{ pic(u, "av") }}<div class="cand-main"><a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{{ idtags(u, lang) }}{% if u.verified %}<span class="vchk" title="Verified student" aria-label="Verified">✔</span>{% endif %}
 <small class="muted">{{ u|study }}{% if u.hours %} · {{ u.hours }} h/week{% endif %}</small></div>
 <span class="cand-tags">{% if x.label %}<span class="pill match">{{ keep(x.label) }}</span>{% endif %}{% if x.other_uni %}<span class="pill">Other university</span>{% elif x.other %}<span class="pill">Other college</span>{% endif %}</span></div>
 <ul class="covwhy">{% for w in x.why %}<li>{{ keep(w) }}</li>{% endfor %}{% if not x.hours_ok %}<li>Usually gives fewer hours a week than this project asks for</li>{% endif %}</ul>

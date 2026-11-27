@@ -7,14 +7,14 @@
 <input type="hidden" name="csrf" value="{{ csrf }}">
 <label for="ln-lead">What you did as the lead <small class="muted">(optional)</small></label><input id="ln-lead" name="lead_note" maxlength="200" placeholder="e.g. planned the sprints and built the backend">
 <p class="fine muted">Your team. Untick anyone who did not take part; they can disagree, and an admin decides.</p>
-<ul class="cteam">{% for x in cp.team %}<li><div class="cwho">{{ pic(x.user, "av xs") }}<b>{{ x.user|dn }}</b><span class="muted">{{ x.role.name }}</span>{% if x.removed %}<span class="pill">Removed earlier</span>{% endif %}</div>
+<ul class="cteam">{% for x in cp.team %}<li><div class="cwho">{{ pic(x.user, "av xs") }}<b>{{ x.user|dn }}</b><span class="muted">{{ x.role.name }}</span>{{ idtags(x.user, lang) }}{% if x.removed %}<span class="pill">Removed earlier</span>{% endif %}</div>
 {% if x.removed %}<p class="fine muted">Listed as not included. They can say they did contribute.</p>{% else %}
 <label class="ccheck"><input type="checkbox" name="in_{{ x.app.id }}" value="1" checked> Took part</label>
 <label class="vh" for="nt{{ x.app.id }}">What this person did</label><input id="nt{{ x.app.id }}" name="note_{{ x.app.id }}" maxlength="200" placeholder="What they did, e.g. designed the app screens">{% endif %}</li>{% endfor %}</ul>
 <button>Mark completed</button></form></details>
 {% else %}<h2>Completed project{% if pr.completed_at %} <small class="muted">· {{ pr.completed_at.strftime("%Y-%m-%d") }}</small>{% endif %}</h2>
 <ul class="crows">{% for x in cp.rows if inside or x.counted %}{% set c = x.c %}<li>
-<div class="cwho">{{ pic(x.user, "av xs") }}<a href="/u/{{ x.user.handle }}"><b>{{ x.user|dn }}</b></a><span class="muted">{{ c.role_name }}</span>
+<div class="cwho">{{ pic(x.user, "av xs") }}<a href="/u/{{ x.user.handle }}"><b>{{ x.user|dn }}</b></a><span class="muted">{{ c.role_name }}</span>{{ idtags(x.user, lang) }}
 {% if x.counted %}<span class="vlabel {{ 'v-admin' if c.admin_status == 'verified' else 'v-lead' }}">{{ "Admin-verified" if c.admin_status == "verified" else ("Confirmed by the team" if c.is_lead else "Confirmed by lead and member") }}</span>
 {% elif c.is_lead %}<span class="vlabel v-wait">Counts once a teammate confirms</span>
 {% elif c.member_status == "disputed" and not c.admin_status %}<span class="vlabel v-wait">With an admin</span>

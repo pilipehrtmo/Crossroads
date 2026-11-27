@@ -6,7 +6,7 @@
 
 <section class="dsec" id="positions"><h2>Open research positions {% if openings %}<span class="count">{{ openings|length }}</span>{% endif %}</h2>
 {% if openings %}<div class="ocards">{% for x in openings %}{% set o = x.o %}<a class="card ocard" href="/openings/{{ o.id }}" data-text="{{ (o.title ~ ' ' ~ o.description ~ ' ' ~ o.skills ~ ' ' ~ x.prof.name ~ ' ' ~ (x.prof|dept) ~ ' ' ~ x.prof.research ~ ' ' ~ x.prof.lab_name)|lower }}">
-<span class="oc-prof">{{ pic(x.prof, "av sm") }}<span><b>{{ x.prof|dn }}</b><small class="muted">{{ x.prof.title or "Professor" }}{% if x.prof|dept %} · {{ x.prof|dept }}{% endif %}</small></span></span>
+<span class="oc-prof">{{ pic(x.prof, "av sm") }}<span><b>{{ x.prof|dn }}</b>{{ idtags(x.prof, lang) }}<small class="muted">{{ x.prof.title or "Professor" }}{% if x.prof|dept %} · {{ x.prof|dept }}{% endif %}</small></span></span>
 {% if x.fy %}<span class="fytag">For you<span class="fywhy" role="tooltip" id="ofy{{ o.id }}">{% for w in x.fy_why %}<span>{{ keep(w) }}</span>{% endfor %}</span></span>{% endif %}<b class="oc-title">{{ o.title }}</b>
 <span class="oc-desc">{{ o.description|truncate(150, True, "…") }}</span>
 {% if o.skills %}<span class="oc-skills">{% for t in o.skills.split(",") if t.strip() %}<span class="tag {{ 'hit' if t.strip().lower() in mytags }}">{{ keep(t.strip()) }}</span>{% endfor %}</span>{% endif %}
@@ -17,7 +17,7 @@
 
 <section class="dsec" id="professors"><h2>Professors {% if profs %}<span class="count">{{ profs|length }}</span>{% endif %}</h2>
 {% if profs %}<div class="pcards">{% for p in profs %}<a class="card pfcard" href="/u/{{ p.handle }}" data-text="{{ (p.name ~ ' ' ~ p.title ~ ' ' ~ (p|dept) ~ ' ' ~ p.research ~ ' ' ~ p.lab_name ~ ' ' ~ p.bio)|lower }}">
-<span class="oc-prof">{{ pic(p, "av") }}<span><b>{{ p|dn }}</b><small class="muted">{{ p.title or "Professor" }}{% if p|dept %} · {{ p|dept }}{% endif %}</small></span></span>
+<span class="oc-prof">{{ pic(p, "av") }}<span><b>{{ p|dn }}</b>{{ idtags(p, lang) }}<small class="muted">{{ p.title or "Professor" }}{% if p|dept %} · {{ p|dept }}{% endif %}</small></span></span>
 {% if p.lab_name %}<small class="muted">{{ p.lab_name }}</small>{% endif %}
 {% if p.research %}<span class="oc-skills">{% for t in p.research.split(",")[:5] if t.strip() %}<span class="tag">{{ keep(t.strip()) }}</span>{% endfor %}</span>{% endif %}
 {% if counts[p.id] %}<span class="oc-fit">{{ counts[p.id] }} open position{{ "s" if counts[p.id] != 1 }}</span>{% endif %}</a>{% endfor %}</div>

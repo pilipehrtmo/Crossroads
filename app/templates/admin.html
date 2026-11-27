@@ -57,6 +57,14 @@
 {% if x.hist %}<details class="pq-hist"><summary>Audit log</summary><ol>{% for h in x.hist %}<li>{{ h.created.strftime("%Y-%m-%d %H:%M") }} · {{ PROF_HIST.get(h.action, h.action) }}{% if h.status_from != h.status_to %} · {{ h.status_from or "new" }} → {{ h.status_to }}{% endif %} · {% if not h.actor_id %}automatic{% elif h.actor_id == u.id %}the applicant{% else %}{{ names_by_id.get(h.actor_id, "admin #" ~ h.actor_id) }}{% endif %}{% if h.reason %}<br><small class="muted">{{ h.reason }}</small>{% endif %}</li>{% endfor %}</ol></details>{% endif %}
 </td></tr>{% endfor %}</table></div>
 {% else %}<p class="muted">{{ "No professor accounts yet." if profs_all else "No one is waiting." }}</p>{% endif %}</section>
+<section class="sec" id="research"><h2>Research to classify <span class="count">{{ rreview|length }}</span></h2>
+{% if rnotice == "done" %}<p class="box ok" role="status">Saved.</p>{% elif rnotice == "noprof" %}<p class="err" role="alert">Professor-led needs an owner who is a verified professor with a university on record. Choose student-led, or fix the owner's account first.</p>{% endif %}
+<p class="muted fine">Older research projects published before the site asked who leads them. Until classified they stay open to every university. Professor-led means only students of the owner's university can join.</p>
+{% if rreview %}<div class="dlist">{% for p, o in rreview %}<div class="drow"><span class="dmain"><a href="/projects/{{ p.id }}"><b>{{ p.title }}</b></a><small class="muted">#{{ p.id }} · {{ o|dn if o else "" }}{% if o %}{{ idtags(o, lang) }}{% endif %} · {{ p.origin }}</small></span>
+<form method="post" action="/admin/research/{{ p.id }}/student"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Student-led</button></form>
+<form method="post" action="/admin/research/{{ p.id }}/advisor"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm ghost">Professor-led</button></form></div>{% endfor %}</div>{% else %}<p class="muted">Nothing to classify.</p>{% endif %}
+{% if onoinst %}<p class="err">Research positions with no university (they can't take applications until the professor has one and saves the position):</p><ul>{% for o, pf in onoinst %}<li><a href="/openings/{{ o.id }}">{{ o.title }}</a> · {{ pf|dn if pf else "" }}</li>{% endfor %}</ul>{% endif %}
+</section>
 <section class="sec" id="depts"><h2>Departments to check <span class="count">{{ deptq|length }}</span></h2>
 <p class="muted">Profiles whose department could not be linked safely: older free-text entries that could mean more than one department, and students who picked "Other / not listed". Link each one, or leave it as typed. What they typed is always kept.</p>
 {% if dflash %}<p class="{{ 'box ok' if dflash[0] == 'ok' else 'err' }}" role="status">{{ dflash[1] }}</p>{% endif %}

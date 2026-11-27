@@ -40,6 +40,14 @@
 
 <div class="xbox" id="box-Research" hidden><p class="xh">About your research</p>
 <label for="rf">Field</label><select id="rf" name="category" data-for="Research"><option value="">Pick a field</option>{% for c in G.RESEARCH_FIELDS %}<option value="{{ c }}" {{ "selected" if pr and pr.kind == "Research" and pr.category == c }}>{{ c }}</option>{% endfor %}</select>
+<fieldset class="rmode" id="rmode"><legend>Who leads this research?</legend>
+{% if pr and pr.research_mode == "review" %}<p class="box warn">This research was published before the site asked who leads it. Choose one to save your changes.</p>{% endif %}
+<label class="chk"><input type="radio" name="research_mode" value="student" {{ "checked" if pr and pr.research_mode == "student" }}><span><b>Students (student-led)</b><br><small class="muted">Students from any university in Taiwan can apply and join.</small></span></label>
+<label class="chk"><input type="radio" name="research_mode" value="advisor" {{ "checked" if pr and pr.research_mode == "advisor" }} {{ "disabled" if not user.is_faculty }}><span><b>A professor (professor-led)</b><br><small class="muted">Research under a professor's supervision. Only students of that professor's university can apply.</small></span></label>
+{% if not user.is_faculty %}<p class="muted fine">Only verified professors can publish professor-led research.</p>
+{% elif rinsts %}<label for="rinst">University for this research</label><select id="rinst" name="research_inst">{% for i, n in rinsts %}<option value="{{ i }}" {{ "selected" if pr and pr.institution_id == i }}>{{ n }}</option>{% endfor %}</select>
+{% else %}<p class="muted fine">Your account has no university on record yet, so you can only publish student-led research for now.</p>{% endif %}
+</fieldset>
 <label for="ro">Research objectives <small class="muted">(optional)</small></label><textarea id="ro" name="objectives" rows="3" maxlength="800" placeholder="The question you want to answer, and what you hope to show">{{ pr.objectives if pr else '' }}</textarea>
 <label for="rm">Methodology <small class="muted">(optional)</small></label><textarea id="rm" name="methodology" rows="3" maxlength="800" placeholder="How you will collect and analyse data: surveys, experiments, sensors, models…">{{ pr.methodology if pr else '' }}</textarea>
 <label for="rx">Expected outcomes <small class="muted">(optional)</small></label><textarea id="rx" name="outcomes" rows="2" maxlength="600" placeholder="A paper, a dataset, a prototype, a poster at a student conference…">{{ pr.outcomes if pr else '' }}</textarea>

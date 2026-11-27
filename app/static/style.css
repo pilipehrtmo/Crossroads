@@ -1243,3 +1243,17 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .tag.gapmiss{background:var(--warn-bg);color:var(--warn-ink)}
 .covwhy{margin:.35rem 0 .2rem;padding-left:1.1rem;color:var(--mut);font-size:.88rem}.covwhy li{margin:.1rem 0}
 @media (max-width:560px){.gaplab{min-width:100%}}
+/* identity tags: university + role next to every name */
+.idtags{display:inline-flex;flex-wrap:wrap;gap:.25rem;margin-left:.4rem;vertical-align:middle;line-height:1.2}
+.idt{display:inline-block;font-size:.7rem;font-weight:600;padding:.12rem .45rem;border-radius:999px;background:var(--soft);color:var(--mut);border:1px solid var(--line);max-width:16rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.idt-role{background:transparent}
+.idt-professor,.idt-researcher{border-color:var(--ok, #2e8b57);color:var(--ok-ink, #1f6b41)}
+.idt-none{font-style:italic;opacity:.8}
+.idline{margin:.2rem 0 .6rem}.idline .idtags{margin-left:0}
+.rlead{background:var(--soft)}.rlead.adv{border:1px solid var(--pri, #5b3fa0)}
+.teamcard h3{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}.teamlist{list-style:none;padding:0;margin:.4rem 0 0}
+.teamlist li{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:.3rem 0;border-top:1px solid var(--line)}.teamlist li:first-child{border-top:0}
+.multiuni{font-size:.72rem}
+.rmode{border:1px solid var(--line);border-radius:.6rem;padding:.6rem .8rem;margin:.6rem 0}.rmode legend{font-weight:700;padding:0 .3rem}
+.byline{max-width:100%;min-width:0}.byline .idtags{margin-left:0;max-width:100%}.idt{max-width:100%}
+.meta .idtags,.pmeta .idtags{min-width:0}

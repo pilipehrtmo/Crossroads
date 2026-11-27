@@ -3,7 +3,7 @@
 {% if notice == "reason" %}<p class="err" role="alert">Write a short reason (at least 5 characters). The student sees it, so explain what to fix.</p>{% elif notice == "done" %}<p class="box ok" role="status">Saved. The student was notified.</p>{% endif %}
 <h2>Waiting <span class="count">{{ waiting|length }}</span></h2>
 {% for r in waiting %}{% set u = people.get(r.user_id) %}<article class="card vreq">
-<div class="app-top"><span class="app-who">{% if u %}<a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a> <small class="muted">{{ u.email }} · student ID {{ u.student_id or "—" }}{% if u|study %} · {{ u|study }}{% endif %}</small>{% endif %}</span><span class="badge">{{ types.get(r.doc_type, r.doc_type) }}</span></div>
+<div class="app-top"><span class="app-who">{% if u %}<a class="app-name" href="/u/{{ u.handle }}">{{ u|dn }}</a>{{ idtags(u, lang) }} <small class="muted">{{ u.email }} · student ID {{ u.student_id or "—" }}{% if u|study %} · {{ u|study }}{% endif %}</small>{% endif %}</span><span class="badge">{{ types.get(r.doc_type, r.doc_type) }}</span></div>
 <p class="muted fine">Sent {{ r.submitted_at|ago }} · {{ (r.size / 1024)|round|int }} KB</p>
 <p><a class="btn soft sm" href="/admin/verification/{{ r.id }}/file" target="_blank" rel="noopener noreferrer">Open document</a></p>
 <div class="acts"><form method="post" action="/admin/verification/{{ r.id }}/approve"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="sm">Approve</button></form></div>
