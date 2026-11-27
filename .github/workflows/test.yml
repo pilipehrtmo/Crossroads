@@ -2,7 +2,7 @@ name: tests
 on: [push, pull_request]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16
@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: { python-version: "3.11.9", cache: pip }
+        with: { python-version: "3.11", cache: pip }
       - run: pip install -r requirements.txt pytest
       - name: Unit tests
         run: python -m pytest -q

@@ -261,3 +261,21 @@ def test_old_research_is_flagged_for_review_and_positions_get_their_professors_u
     with Session(engine) as s: assert s.get(Project, pid).research_mode == "review"
     a.post(f"/admin/research/{pid}/student", data=dict(csrf=csrf(a, "/admin")))
     with Session(engine) as s: assert s.get(Project, pid).research_mode == "student"
+
+
+# ---------- students of universities without a department catalog ----------
+def test_other_university_student_types_department_and_never_gets_an_nthu_one(w):
+    c = login("bo")
+    page = c.get("/profile").text
+    assert 'name="unit_text"' in page and 'name="dept_sel"' not in page        # no NTHU department list
+    c.post("/profile", data=dict(csrf=csrf(c), name="Bo", unit_text="Department of Psychology", dept_sel="eecs-cs", hours="4"))
+    with Session(engine) as s:
+        u = s.get(User, w["b"]); a = AC.current(s, u)
+        assert u.dept_id == "" and u.faculty == "Department of Psychology" and a.unit_text == "Department of Psychology"
+        assert a.institution_id == w["ntu"]                                      # still NTU
+    assert 'name="dept_sel"' in login("anna").get("/profile").text or "dept_picker" not in page   # NTHU students keep the catalog
+
+
+def test_university_is_not_repeated_in_the_study_line(w):
+    html = TestClient(app).get("/u/bo").text
+    assert html.count(">國立臺灣大學<") == 1                                  # shown once (the tag), not again in the study line

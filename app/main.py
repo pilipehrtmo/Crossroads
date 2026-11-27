@@ -248,6 +248,7 @@ def idtags(u, lang="en"):   # university + role, shown next to a person's name e
     inst = f'<span class="idt idt-inst" title="{escape(d["inst"])}">{escape(d["inst"])}</span>' if d["inst"] else f'<span class="idt idt-inst idt-none">{escape(d["none_label"])}</span>'
     return Markup(f'<span class="idtags">{inst}<span class="idt idt-role idt-{d["role"]}">{escape(d["role_label"])}</span></span>')
 templates.env.globals["idtags"] = idtags
+templates.env.globals["on_catalog"] = AC.on_catalog
 
 def name_handles():   # one-time: users who still have a random "student-xxxxxx" address get one made from their name
     with Session(engine) as s:
@@ -270,15 +271,7 @@ templates.env.filters["dept"] = dept_filter
 @pass_context
 def study_filter(ctx, u):   # "Master's · Computer Science"; with multi-university sign-up on, other schools are named too
     if not u: return ""
-    base = DEP.study(u, ctx.get("lang", "en"))
-    from .config import MULTI_SCHOOL
-    if not MULTI_SCHOOL or not getattr(u, "id", None): return base
-    from . import academics as AC
-    with Session(engine) as s:
-        a = AC.current(s, u); inst = s.get(Institution, a.institution_id) if a else None
-    if not inst or inst.moe_code == AC.NTHU: return base
-    name = inst.name_zh if ctx.get("lang") == "zh" or not inst.name_en else inst.name_en
-    return f"{name} · {base}" if base else name
+    return DEP.study(u, ctx.get("lang", "en"))   # the university is shown by idtags() next to the name, not repeated here
 templates.env.filters["study"] = study_filter
 templates.env.globals.update(DEP=DEP)
 
@@ -583,9 +576,13 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
     try: links = {f: clean_link(f, str(form.get(f, ""))) for f, *_ in PRO_LINKS}
     except LinkError as e: errs.append(str(e)); links = {}
     dept_fields = None
-    if user.role != "faculty":
+    unit_text = None   # students of a university without a department catalog type their department
+    if user.role != "faculty" and AC.on_catalog(user):
         dept_fields, derr = DEP.choose(dept_sel, dept_track, dept_other)
         errs.append(derr)
+    elif user.role != "faculty":
+        unit_text = " ".join(str(form.get("unit_text", "")).split())[:80]
+        if len(unit_text) < 2: errs.append("Enter your department or program.")
     degree = str(form.get("degree", "")).strip()
     if user.role != "faculty" and degree and degree not in DEP.DEGREES: errs.append("Choose your degree: Bachelor's, Master's or PhD.")
     errs = [e for e in errs if e]
@@ -608,6 +605,10 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
         if user.faculty_status not in ("verified", "suspended"): relink_text(user, faculty.strip()[:60])   # a verified department changes only through an admin
     else:
         if dept_fields: set_dept(user, dept_fields)   # nothing chosen = the department stays as it is
+        if unit_text:   # typed department (no catalog): kept on the profile and on the current affiliation
+            user.faculty, user.dept_id, user.dept_track, user.dept_status, user.dept_src = unit_text, "", "", "", "user"
+            a = AC.current(s, user)
+            if a: a.unit_text = unit_text; s.add(a)
         if degree in DEP.DEGREES: user.degree = degree   # nothing chosen = stays as it is
     user.hours = max(1, min(hours, 60))
     user.skills = ",".join(sorted({t.lower() for t in skill_list}))

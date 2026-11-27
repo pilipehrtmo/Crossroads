@@ -106,7 +106,7 @@ def _ident_cache():
     if time.time() - _ID["at"] > 30:
         from .db import engine
         with Session(engine) as s:
-            _ID["inst"] = {i.id: (i.name_en, i.name_zh) for i in s.exec(select(Institution)).all()}
+            _ID["inst"] = {i.id: (i.name_en, i.name_zh, i.catalog) for i in s.exec(select(Institution)).all()}
             _ID["aff"] = {a.user_id: (a.institution_id, a.kind) for a in s.exec(select(Affiliation).where(Affiliation.current == True)).all()}
         _ID["at"] = time.time()
     return _ID
@@ -117,6 +117,16 @@ def inst_name(iid, lang="en"):
     n = _ident_cache()["inst"].get(iid)
     if not n: return ""
     return n[1] if lang == "zh" or not n[0] else n[0]
+
+
+def on_catalog(u):
+    """True when this person's departments come from the NTHU catalog (NTHU, or no affiliation yet: older accounts).
+    Students of other universities type their department instead; they never get an NTHU department."""
+    if not u or not getattr(u, "id", None): return True
+    a = _ident_cache()["aff"].get(u.id)
+    if not a: return True
+    n = _ident_cache()["inst"].get(a[0])
+    return bool(n and n[2] == "nthu")
 
 
 def ident(u, lang="en"):
