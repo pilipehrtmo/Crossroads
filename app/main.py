@@ -2,6 +2,7 @@ import asyncio, hashlib, os, re, secrets, time
 from collections import defaultdict, deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
+from typing import Optional
 from fastapi import FastAPI, Request, Depends, Form, HTTPException, UploadFile, File
 from fastapi.responses import RedirectResponse, JSONResponse, Response
 from markupsafe import Markup, escape
@@ -265,6 +266,22 @@ templates.env.globals["verify_required"] = verify_required
 templates.env.globals["CONTACT_EMAIL"] = CONTACT_EMAIL
 templates.env.globals["vdata"] = V.client_data
 from . import departments as DEP
+def my_affiliation(u):
+    """For the profile form: the person's current university (read-only there) and linked official unit, if any."""
+    from . import academics as AC
+    with Session(engine) as s:
+        a = AC.current(s, u)
+        if not a: return dict(code="", inst_label="", unit_key="", unit_label="")
+        i = s.get(Institution, a.institution_id)
+        un = AC.find_unit(s, i, a.unit_key) if a.unit_key.startswith("moe:") else None
+        lab = (i.name_zh + (" · " + i.name_en if i.name_en else "")) if i else ""
+        return dict(code=i.moe_code if i else "", inst_label=lab, unit_key=a.unit_key if un else "",
+                    unit_label=(un.name_zh + (" · " + un.name_en if un.name_en and un.en_status == "verified" else "")) if un else "")
+
+
+templates.env.globals["my_affiliation"] = my_affiliation
+
+
 @pass_context
 def dept_filter(ctx, u): return DEP.display(u, ctx.get("lang", "en")) if u else ""   # linked department in the reader's language, else the text as typed
 templates.env.filters["dept"] = dept_filter
@@ -340,19 +357,38 @@ def school_ctx(req):
     """Sign-up list of institutions, only while multi-university sign-up is switched on."""
     from .config import MULTI_SCHOOL
     if not MULTI_SCHOOL: return dict(multi_school=False, schools=[])
-    from .academics import choices
-    with Session(engine) as s: return dict(multi_school=True, schools=choices(s, pick_lang(req)))
+    from .academics import search_list
+    with Session(engine) as s: return dict(multi_school=True, schools=search_list(s))
+
+
+@app.get("/api/units/{code}")
+def api_units(code: str, req: Request, s: Session = Depends(get_session)):
+    """Official departments of ONE university for the department search (public directory data, no personal data).
+    NTHU answers catalog="nthu": its reviewed department picker is used instead."""
+    from fastapi.responses import JSONResponse
+    from . import academics as AC
+    if not re.fullmatch(r"[0-9A-Z]{4}", code or ""): raise HTTPException(404)
+    inst = s.exec(select(Institution).where(Institution.moe_code == code, Institution.active == True)).first()
+    if not inst: raise HTTPException(404)
+    body = dict(code=code, catalog=inst.catalog or "", units=[] if inst.catalog == "nthu" else AC.units_of(s, inst))
+    return JSONResponse(body, headers={"Cache-Control": "public, max-age=600"})
 
 @app.post("/signup")
 def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id: str = Form(""), agree: str = Form(""), password: str = Form(""),
            password2: str = Form(""), role: str = Form("student"), dept: str = Form(""), page: str = Form(""), title: str = Form(""), title_other: str = Form(""),
            evidence: str = Form(""), dept_sel: str = Form(""), dept_track: str = Form(""), dept_other: str = Form(""), degree: str = Form(""),
-           institution: str = Form(""), unit_text: str = Form(""), s: Session = Depends(get_session)):
+           institution: str = Form(""), inst_field: str = Form(""), unit_text: str = Form(""), unit_key: str = Form(""), vmode: str = Form(""), doc_type: str = Form(""),
+           consent: str = Form(""), vdoc: UploadFile = File(None), s: Session = Depends(get_session)):
     email = email.strip().lower(); name = " ".join(name.split())[:60]; sid = re.sub(r"\s+", "", student_id)
     role = "faculty" if role == "faculty" else "student"; dept = dept.strip()[:60]; page = page.strip()[:300]
     back = lambda err, field="": render(req, "signup.html", error=err, err_field=field, titles=TITLES, form=dict(email=email, name=name, sid=sid, role=role, dept=dept, page=page, title=title, title_other=title_other, evidence=evidence, agree=agree,
                                                                                  dept_sel=dept_sel, dept_track=dept_track, dept_other=dept_other, degree=degree,
-                                                                                 institution=institution, unit_text=unit_text), **school_ctx(req))
+                                                                                 institution=institution, unit_text=unit_text, unit_key=unit_key, vmode=vmode, doc_type=doc_type,
+                                                                                 had_file=bool(doc)), **school_ctx(req))
+    doc = b""
+    if vdoc is not None and getattr(vdoc, "filename", "") and role != "faculty" and vmode != "skip":
+        from .studentverify import MAX_BYTES
+        doc = vdoc.file.read(MAX_BYTES + 1)
     # 200 new accounts per network per hour: a whole class on campus Wi-Fi shares one address
     w = wait_left(f"signup:{ip_of(req)}", 200, 3600)
     if w: return back(f"Many accounts were just created from this network. Please wait {wait_text(w)} and try again.")
@@ -363,16 +399,22 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     from .config import MULTI_SCHOOL
     from . import academics as AC
     inst = None   # another institution than NTHU (multi-university sign-up); None = the NTHU path, unchanged
+    if MULTI_SCHOOL and inst_field and not institution: return back("Choose your university or college.", "#inst-q")   # cleared in the form (no field at all = the NTHU path, as before)
     if MULTI_SCHOOL and institution and institution != AC.NTHU:
         inst = s.exec(select(Institution).where(Institution.moe_code == institution, Institution.active == True)).first()
         if not inst: return back("Choose your university or college from the list.", "#inst")
-    sid_review = ""
+    sid_review = ""; unit = None
     if inst and role != "faculty":   # a student of another institution: its own ID rule (or manual review), its own uniqueness
         if STUDENT_EMAIL_RULE == "nthu" and not academic_email(email) and email not in ADMIN_EMAILS:
             return back("Use your university email address to sign up.", "#e")
         verdict, msg = AC.check_sid(s, inst, degree, sid)
         if verdict == "bad": return back(msg, "#s")
         if AC.sid_taken(s, inst.id, sid): return back("That student ID already has an account. Log in instead, or use Forgot password.", "#s")
+        unit = None
+        if unit_key:   # picked from this school's official list: it must belong to the chosen school
+            unit = AC.find_unit(s, inst, unit_key)
+            if not unit: return back("That department is not in the list for the university you chose. Pick it again, or type it.", "#ut")
+            unit_text = unit.name_zh
         unit_text = " ".join(unit_text.split())[:80]
         if len(unit_text) < 2: return back("Enter your department or program.", "#ut")
         if degree not in DEP.DEGREES: return back("Choose your degree: Bachelor's, Master's or PhD.", "#dg")
@@ -397,6 +439,13 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     err = password_problem(password, email, name)
     if err: return back(err, "#pw")
     if password != password2: return back("The two passwords are not the same.", "#pw2")
+    vclean = None   # the student-status document, checked now so a bad file never leaves a half-made account
+    if doc and role != "faculty":
+        from .studentverify import check_doc, DocError, DOC_TYPES
+        if doc_type not in DOC_TYPES: return back("Choose what kind of document you're sending, then choose the file again.", "#vdt")
+        if consent != "1": return back("Tick the box to agree to how your document is reviewed and deleted, then choose the file again.", "#vcons")
+        try: vclean = check_doc(doc)
+        except DocError as e: return back(str(e), "#vf")
     if not agree: return back("Please agree to the privacy notice to create an account.", "#lf .chk")
     u = User(email=email, name=name, student_id="" if inst else sid, handle=slugify(s, name), is_admin=email in ADMIN_EMAILS, password_hash=hash_password(password))
     u.lang = pick_lang(req)
@@ -418,14 +467,21 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
     home = inst or AC.nthu(s)   # NTHU sign-ups also get an affiliation once the institution table exists (dual-write)
     if home:
         fac = role == "faculty"
-        AC.attach(s, u, home, degree="" if fac else degree, sid="" if fac else sid, unit_key="" if inst else (u.dept_id or ""),
+        picked = inst and not fac and unit is not None   # an official unit of the chosen school (MOE list)
+        AC.attach(s, u, home, degree="" if fac else degree, sid="" if fac else sid,
+                  unit_key=("moe:" + unit.unit_code if picked else "") if inst else (u.dept_id or ""),
                   unit_text=(dept if fac else unit_text) if inst else ("" if u.dept_id else (u.faculty or "")), kind="professor" if fac else "student",
-                  review=sid_review or ("unit" if inst and not fac else ""))
+                  review=",".join(x for x in (sid_review, "unit" if inst and not fac and not picked else "") if x))
         try: s.commit()
         except IntegrityError:   # the same student ID at the same school was just taken by another sign-up
             s.rollback(); s.delete(s.get(User, u.id)); s.commit()
             return back("That student ID already has an account. Log in instead, or use Forgot password.", "#s")
     note(f"signup:{ip_of(req)}")
+    vsent = ""   # "" skipped / "sent" stored for review / "failed" could not be stored (the account is fine; upload later)
+    if vclean is not None:
+        from .studentverify import submit_clean
+        vsent = "sent" if submit_clean(s, u, doc_type, vclean, "at sign-up") else "failed"
+    req.session["signup_doc"] = vsent or ("skip" if role != "faculty" else "")
     if role == "faculty":
         from .profverify import new_application
         new_application(s, u)
@@ -435,7 +491,7 @@ def signup(req: Request, email: str = Form(""), name: str = Form(""), student_id
         except Exception as e:
             print(">>> VERIFY EMAIL FAILED", email, type(e).__name__, e)
             return render(req, "notice.html", title="Account created", pending=True, msg="We could not send the confirmation email just now. Press Send again in a minute.")
-        return render(req, "notice.html", title="Check your inbox", pending=True,
+        return render(req, "notice.html", title="Check your inbox", pending=True, vdoc=vsent or ("skip" if role != "faculty" else ""),
                       msg=f"We sent a link to {email}. Open it to finish signing up. It can take a minute, and may land in spam.")
     start_session(req, u); return go("/verification" if role == "faculty" else "/profile")
 
@@ -582,6 +638,11 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
         errs.append(derr)
     elif user.role != "faculty":
         unit_text = " ".join(str(form.get("unit_text", "")).split())[:80]
+        ukey = str(form.get("unit_key", "")).strip()
+        a0 = AC.current(s, user)
+        unit = AC.find_unit(s, s.get(Institution, a0.institution_id), ukey) if (a0 and ukey) else None   # only a unit of the person's own school
+        if ukey and not unit: errs.append("That department is not in your university's list. Pick it again, or type it.")
+        if unit: unit_text = unit.name_zh
         if len(unit_text) < 2: errs.append("Enter your department or program.")
     degree = str(form.get("degree", "")).strip()
     if user.role != "faculty" and degree and degree not in DEP.DEGREES: errs.append("Choose your degree: Bachelor's, Master's or PhD.")
@@ -605,10 +666,16 @@ async def profile_save(req: Request, name: str = Form(...), bio: str = Form(""),
         if user.faculty_status not in ("verified", "suspended"): relink_text(user, faculty.strip()[:60])   # a verified department changes only through an admin
     else:
         if dept_fields: set_dept(user, dept_fields)   # nothing chosen = the department stays as it is
-        if unit_text:   # typed department (no catalog): kept on the profile and on the current affiliation
-            user.faculty, user.dept_id, user.dept_track, user.dept_status, user.dept_src = unit_text, "", "", "", "user"
+        if unit_text:   # another university: an official unit of their school (MOE list) or the department as typed
+            user.faculty, user.dept_id, user.dept_track, user.dept_status, user.dept_src = unit_text, "", "", "", "moe" if unit else "user"
             a = AC.current(s, user)
-            if a: a.unit_text = unit_text; s.add(a)
+            if a:   # the university itself never changes here; only the department and whether an admin should look at it
+                newkey = "moe:" + unit.unit_code if unit else ""
+                if a.unit_key != newkey or a.unit_text != unit_text:
+                    a.unit_key, a.unit_text = newkey, unit_text
+                    flags = [x for x in (a.review or "").split(",") if x and x != "unit"]
+                    if not unit: flags.append("unit")
+                    a.review = ",".join(flags); s.add(a); AC.forget_ident()
         if degree in DEP.DEGREES: user.degree = degree   # nothing chosen = stays as it is
     user.hours = max(1, min(hours, 60))
     user.skills = ",".join(sorted({t.lower() for t in skill_list}))
@@ -1465,6 +1532,46 @@ async def save_program(req: Request, user=Depends(me), s: Session = Depends(get_
     p.active = f.get("active") == "on"
     s.commit(); return go("/admin#programs")
 
+# ---------- admin: affiliations to check (departments typed by students of other universities, unknown ID formats) ----------
+@app.get("/admin/affiliations")
+def admin_affiliations(req: Request, user=Depends(me), s: Session = Depends(get_session)):
+    if not user or not user.is_admin: raise HTTPException(403)
+    from .models import Affiliation
+    rows = s.exec(select(Affiliation).where(Affiliation.current == True, Affiliation.review != "").order_by(Affiliation.created.desc()).limit(200)).all()
+    people = {u.id: u for u in s.exec(select(User).where(User.id.in_([a.user_id for a in rows] or [-1]))).all()}
+    insts = {i.id: i for i in s.exec(select(Institution).where(Institution.id.in_({a.institution_id for a in rows} or {-1}))).all()}
+    return render(req, "admin_affil.html", user, rows=rows, people=people, insts=insts, notice=req.query_params.get("n", ""))
+
+
+@app.post("/admin/affiliations/{aid}", dependencies=[limited("affilfix", 300, 3600)])
+def admin_affiliation_fix(aid: int, action: str = Form(""), unit_key: str = Form(""), unit_text: str = Form(""), user=Depends(me), s: Session = Depends(get_session)):
+    """Link a typed department to the school's official unit, or confirm it as typed. The university, the student ID and
+    the person's account never change here; every decision is logged."""
+    if not user or not user.is_admin: raise HTTPException(403)
+    from .models import Affiliation, VerificationEvent
+    from . import academics as AC
+    a = s.get(Affiliation, aid)
+    if not a or not a.current: raise HTTPException(404)
+    inst = s.get(Institution, a.institution_id); u = s.get(User, a.user_id)
+    flags = [x for x in (a.review or "").split(",") if x]
+    before = f"{a.unit_key or '-'} {a.unit_text}"
+    if action == "link":
+        un = AC.find_unit(s, inst, unit_key)
+        if not un: return go("/admin/affiliations?n=nounit")
+        a.unit_key, a.unit_text = "moe:" + un.unit_code, un.name_zh
+        if u and u.role != "faculty": u.faculty, u.dept_src = un.name_zh, "moe"; s.add(u)
+        flags = [x for x in flags if x != "unit"]
+    elif action == "keep":   # the typed name is right (or the list has no such unit): confirm it as typed
+        flags = [x for x in flags if x != "unit"]
+    elif action == "id_ok":   # an admin checked the student ID against the document
+        flags = [x for x in flags if x != "id_format"]
+    else: return go("/admin/affiliations")
+    a.review = ",".join(flags); s.add(a)
+    s.add(VerificationEvent(user_id=a.user_id, actor_id=user.id, action="affiliation_" + action, note=f"{before} -> {a.unit_key or '-'} {a.unit_text}"[:300]))
+    s.commit(); AC.forget_ident()
+    return go("/admin/affiliations?n=done")
+
+
 @app.post("/admin/{action}/{oid}")
 def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
@@ -1511,3 +1618,4 @@ def admin_act(req: Request, action: str, oid: int, user=Depends(me), s: Session 
 
 from . import advisor   # noqa: E402,F401  research supervision, professor dashboard, research positions (registers its routes on app)
 from . import notify, docs, opps, profverify, tour, onboard, whatsnew, reputation, invites, studentverify   # notifications, research documents, competitions and saved items (after advisor: they use its rules)
+

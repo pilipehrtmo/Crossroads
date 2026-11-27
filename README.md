@@ -33,3 +33,15 @@ python -m app.academics migrate    # give every existing account an NTHU affilia
 python -m app.academics research   # mark unclassified Research projects "review"; give research positions their professor's university
 python -m app.academics check      # counts that must match
 ```
+
+## Bilingual university and department directory
+
+`data/institutions_directory.csv` (139 schools, Chinese + English names with source and status, search abbreviations) and
+`data/academic_units.csv` (3,585 official units from the MOE 114 department list, English only where a source pairs it)
+are built by `scripts/build_directory.py` from the saved official sources in `data/sources/`. Coverage and the lists
+of names still to check are in `data/research/`. Load them with the dry-run-first commands:
+
+```
+python -m app.academics names            # report; add --apply to fill EMPTY English names / abbreviations only
+python -m app.academics units            # report; add --apply to add missing units (never deletes or renames)
+```

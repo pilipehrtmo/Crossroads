@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 from app.main import app
 from app.db import engine, init_db
 from app import academics as AC, eligibility as EL
-from app.models import (User, Project, Role, Application, Invitation, Block, Report, Opening, OpeningApp, Institution,
+from app.models import (User, Project, Role, Application, Invitation, Block, Report, Opening, OpeningApp, Institution, AcademicUnit,
                         InstitutionDomain, StudentIdRule, Affiliation, StudentVerification, VerificationEvent)
 from app.security import hash_password
 
@@ -32,7 +32,7 @@ def w():
     from app.main import HITS; HITS.clear()
     with Session(engine) as s:
         for t in (VerificationEvent, StudentVerification, OpeningApp, Opening, Invitation, Block, Report, Application, Role, Project,
-                  Affiliation, StudentIdRule, InstitutionDomain, Institution, User):
+                  Affiliation, StudentIdRule, InstitutionDomain, AcademicUnit, Institution, User):
             for row in s.exec(select(t)).all(): s.delete(row)
         s.commit()
         AC.do_import(s, apply=True)

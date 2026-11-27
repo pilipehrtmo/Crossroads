@@ -18,16 +18,22 @@ Safe migration (python -m app.academics ...), every step dry-run unless --apply:
   migrate    give every existing account without an affiliation an NTHU one, copying its department, degree and student
              ID unchanged; refuses if two accounts would share an NTHU student ID
   research   mark unclassified Research projects "review"; give each research position its professor's university
+  names      bilingual directory (data/institutions_directory.csv): fill English names, search abbreviations and
+             directory links that are still empty; never touches moe_code, name_zh, ids, or an English name already set
+  units      official departments / institutes / programmes (data/academic_units.csv, MOE 114) for every school;
+             adds missing rows only, fills an empty English name only, never deletes or renames a unit
   check      counts that must match after migrating (users vs current affiliations, duplicates)
 Rollback: MULTI_SCHOOL=0 hides the new sign-up fields; affiliations are additive and can be ignored or deleted.
 """
 import csv, os, re, sys
 from datetime import datetime
 from sqlmodel import Session, select
-from .models import User, Institution, InstitutionDomain, StudentIdRule, Affiliation
+from .models import User, Institution, InstitutionDomain, StudentIdRule, Affiliation, AcademicUnit
 
 HERE = os.path.dirname(__file__)
 CSV = os.path.join(HERE, "..", "data", "institutions_moe.csv")
+DIR_CSV = os.path.join(HERE, "..", "data", "institutions_directory.csv")
+UNITS_CSV = os.path.join(HERE, "..", "data", "academic_units.csv")
 MOE_URL = "https://data.gov.tw/dataset/6091"
 MOE_FILE = "https://stats.moe.gov.tw/files/opendata/u1_new.json"
 MOE_YEAR = "115"
@@ -94,7 +100,7 @@ def attach(s, u, inst, degree="", sid="", unit_key="", unit_text="", kind="stude
 ROLE_T = {"en": {"student": "Student", "professor": "Professor", "researcher": "Researcher", "admin": "Admin"},
           "zh": {"student": "學生", "professor": "教授", "researcher": "研究人員", "admin": "管理員"}}
 NO_INST = {"en": "University not set", "zh": "尚未設定學校"}
-_ID = {"at": 0.0, "aff": {}, "inst": {}}
+_ID = {"at": 0.0, "aff": {}, "inst": {}, "unit": {}}
 
 
 def forget_ident(): _ID["at"] = 0.0
@@ -107,7 +113,13 @@ def _ident_cache():
         from .db import engine
         with Session(engine) as s:
             _ID["inst"] = {i.id: (i.name_en, i.name_zh, i.catalog) for i in s.exec(select(Institution)).all()}
-            _ID["aff"] = {a.user_id: (a.institution_id, a.kind) for a in s.exec(select(Affiliation).where(Affiliation.current == True)).all()}
+            cur = s.exec(select(Affiliation).where(Affiliation.current == True)).all()
+            _ID["aff"] = {a.user_id: (a.institution_id, a.kind, a.unit_key) for a in cur}
+            want = {(a.institution_id, a.unit_key[4:]) for a in cur if a.unit_key.startswith("moe:")}
+            _ID["unit"] = {}
+            if want:
+                for un in s.exec(select(AcademicUnit).where(AcademicUnit.unit_code.in_([c for _, c in want]))).all():
+                    if (un.institution_id, un.unit_code) in want: _ID["unit"][(un.institution_id, un.unit_code)] = (un.name_zh, un.name_en)
         _ID["at"] = time.time()
     return _ID
 
@@ -143,6 +155,17 @@ def ident(u, lang="en"):
                 none_label=NO_INST[lang])
 
 
+def unit_name(u, lang="en"):
+    """An official unit of another school linked on the person's current affiliation, in the reader's language when a
+    verified English name exists (otherwise the official Chinese name); "" when the department was typed."""
+    if not u or not getattr(u, "id", None): return ""
+    a = _ident_cache()["aff"].get(u.id)
+    if not a or not (a[2] or "").startswith("moe:"): return ""
+    n = _ident_cache()["unit"].get((a[0], a[2][4:]))
+    if not n: return ""
+    return n[1] if lang != "zh" and n[1] else n[0]
+
+
 def institution_id_of(s, u):
     a = current(s, u)
     return a.institution_id if a else None
@@ -160,6 +183,33 @@ def choices(s, lang="en"):
     rows = s.exec(select(Institution).where(Institution.active == True).order_by(Institution.moe_code)).all()
     rows.sort(key=lambda i: (i.moe_code != NTHU, i.moe_code))
     return [(i.moe_code, (i.name_en + " " + i.name_zh) if i.name_en and lang != "zh" else i.name_zh) for i in rows]
+
+
+def search_list(s):
+    """Every active institution for the searchable picker, NTHU first then by MOE code. Only stored names and
+    abbreviations (no translation): c = moe_code (the value that is submitted), zh, en, a = abbreviations."""
+    rows = s.exec(select(Institution).where(Institution.active == True).order_by(Institution.moe_code)).all()
+    rows.sort(key=lambda i: (i.moe_code != NTHU, i.moe_code))
+    return [dict(c=i.moe_code, zh=i.name_zh, en=i.name_en, a=i.aliases) for i in rows]
+
+
+KINDS = {"department": ("Department", "學系"), "institute": ("Graduate institute", "研究所"), "program": ("Degree programme", "學位學程"), "other": ("Unit", "單位")}
+
+
+def units_of(s, inst):
+    """Official units of ONE institution (never another school's), grouped by college in the list's order."""
+    if not inst: return []
+    rows = s.exec(select(AcademicUnit).where(AcademicUnit.institution_id == inst.id, AcademicUnit.active == True)
+                  .order_by(AcademicUnit.college_zh, AcademicUnit.unit_code)).all()
+    return [dict(k="moe:" + u.unit_code, zh=u.name_zh, en=u.name_en if u.en_status == "verified" else "", col=u.college_zh,
+                 col_en=u.college_en, kind=u.kind) for u in rows]
+
+
+def find_unit(s, inst, key):
+    """The AcademicUnit a submitted key names, only if it belongs to this institution (else None)."""
+    if not inst or not (key or "").startswith("moe:"): return None
+    return s.exec(select(AcademicUnit).where(AcademicUnit.institution_id == inst.id, AcademicUnit.unit_code == key[4:],
+                                             AcademicUnit.active == True)).first()
 
 
 # ---------- maintenance commands ----------
@@ -237,6 +287,71 @@ def do_research(s, apply=False):
                 openings_unresolved=[o.id for o, _ in unresolved], applied=apply)
 
 
+def _read_pipe(path):
+    with open(path, encoding="utf-8") as f:
+        return list(csv.DictReader(f, delimiter="|"))
+
+
+def do_names(s, apply=False):
+    """Dry-run report (or apply) of the bilingual directory. Fills only EMPTY fields; an English name that is already
+    set and differs is reported as a conflict and left alone (NTHU's reviewed name stays)."""
+    out = dict(set_en=[], same=0, conflicts=[], set_aliases=0, set_dir=0, unknown=[], rows=0)
+    for r in _read_pipe(DIR_CSV):
+        out["rows"] += 1
+        i = s.exec(select(Institution).where(Institution.moe_code == r["moe_code"])).first()
+        if i is None: out["unknown"].append(r["moe_code"]); continue
+        if r["name_zh"] != i.name_zh: out["conflicts"].append((i.moe_code, "name_zh differs", i.name_zh, r["name_zh"])); continue
+        if r["name_en"]:
+            if not i.name_en:
+                out["set_en"].append((i.moe_code, r["name_en"], r["en_status"]))
+                if apply: i.name_en, i.en_source, i.en_status = r["name_en"], r["en_source"], r["en_status"]
+            elif i.name_en == r["name_en"]:
+                out["same"] += 1
+                if apply and not i.en_status: i.en_status = r["en_status"]
+            else: out["conflicts"].append((i.moe_code, "name_en already set", i.name_en, r["name_en"]))
+        if r["aliases"] and not i.aliases:
+            out["set_aliases"] += 1
+            if apply: i.aliases = r["aliases"]
+        if r["directory_url"] and not i.directory_url:
+            out["set_dir"] += 1
+            if apply: i.directory_url = r["directory_url"]
+        if apply and r["intl_admissions_url"] and not i.intl_url: i.intl_url = r["intl_admissions_url"]
+        if apply: s.add(i)
+    if apply: s.commit(); forget_ident()
+    out["set_en_n"] = len(out["set_en"]); out["applied"] = apply
+    return out
+
+
+def do_units(s, apply=False):
+    """Dry-run report (or apply) of the official unit list. Adds units that are missing, fills an empty English name;
+    never deletes, renames or moves a unit, and never changes anyone's affiliation."""
+    insts = {i.moe_code: i for i in s.exec(select(Institution)).all()}
+    have = {(u.institution_id, u.unit_code): u for u in s.exec(select(AcademicUnit)).all()}
+    out = dict(add=0, fill_en=0, same=0, unknown_school=set(), name_changed=[], per_school={}, rows=0)
+    for r in _read_pipe(UNITS_CSV):
+        out["rows"] += 1
+        i = insts.get(r["moe_code"])
+        if not i: out["unknown_school"].add(r["moe_code"]); continue
+        u = have.get((i.id, r["unit_code"]))
+        if u is None:
+            out["add"] += 1; out["per_school"][r["moe_code"]] = out["per_school"].get(r["moe_code"], 0) + 1
+            if apply:
+                u = AcademicUnit(institution_id=i.id, unit_code=r["unit_code"], college_zh=r["college_zh"], college_en=r["college_en"],
+                                 name_zh=r["name_zh"], name_en=r["name_en"], en_status=r["en_status"], en_source=r["en_source"],
+                                 kind=r["kind"], source_url=r["source"], source_year=r["source_year"])
+                s.add(u); have[(i.id, r["unit_code"])] = u
+        else:
+            if u.name_zh != r["name_zh"]: out["name_changed"].append((r["moe_code"], r["unit_code"], u.name_zh, r["name_zh"]))   # reported, not changed
+            elif r["name_en"] and not u.name_en:
+                out["fill_en"] += 1
+                if apply: u.name_en, u.en_status, u.en_source = r["name_en"], r["en_status"], r["en_source"]; s.add(u)
+            else: out["same"] += 1
+    if apply: s.commit(); forget_ident()
+    out["unknown_school"] = sorted(out["unknown_school"]); out["schools"] = len(out["per_school"]); out["applied"] = apply
+    del out["per_school"]
+    return out
+
+
 def do_check(s):
     users = [u for u in s.exec(select(User)).all() if not u.is_admin]
     cur = s.exec(select(Affiliation).where(Affiliation.current == True)).all()
@@ -252,6 +367,6 @@ if __name__ == "__main__":
     init_db()
     cmd, apply = (sys.argv[1] if len(sys.argv) > 1 else "check"), "--apply" in sys.argv
     with Session(engine) as s:
-        out = {"import": do_import, "migrate": do_migrate, "research": do_research}.get(cmd, lambda s, apply=False: do_check(s))(s, apply) if cmd != "check" else do_check(s)
+        out = {"import": do_import, "migrate": do_migrate, "research": do_research, "names": do_names, "units": do_units}.get(cmd, lambda s, apply=False: do_check(s))(s, apply) if cmd != "check" else do_check(s)
     print(out)
-    if cmd in ("import", "migrate", "research") and not apply: print("dry run: nothing written (add --apply)")
+    if cmd in ("import", "migrate", "research", "names", "units") and not apply: print("dry run: nothing written (add --apply)")

@@ -483,6 +483,10 @@ class Institution(SQLModel, table=True):   # a recognized Taiwanese higher-educa
     active: bool = True
     renewal_mmdd: str = ""     # when student badges renew each year (MM-DD); "" = the site default
     catalog: str = ""          # "nthu" when a reviewed department catalog exists (departments.json); "" = departments typed by students
+    en_status: str = ""        # "verified" / "needs_review" (kept as published, casing or wording looks odd) / "" not checked
+    aliases: str = ""          # space-separated search abbreviations, only from a source (e.g. the school's own web domain: NTU)
+    directory_url: str = ""    # the school's own list of departments, when it was found
+    intl_url: str = ""         # the school's own international admissions page, when it was found
 
 class InstitutionDomain(SQLModel, table=True):   # email domains confirmed from the institution's own pages (never "any .edu.tw")
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -499,11 +503,27 @@ class StudentIdRule(SQLModel, table=True):   # a documented student-number forma
     example: str = ""
     source_url: str = ""
 
+class AcademicUnit(SQLModel, table=True):   # an official department, graduate institute or degree programme of one institution
+    id: Optional[int] = Field(default=None, primary_key=True)
+    institution_id: int = Field(foreign_key="institution.id", index=True)
+    unit_code: str = Field(index=True)   # the MOE unit code (系所代碼); unique within an institution
+    college_zh: str = ""       # college or faculty as the MOE list names it
+    college_en: str = ""
+    name_zh: str
+    name_en: str = ""          # only when a source pairs it with name_zh for this school; never translated
+    en_status: str = ""        # "verified" / "needs_review" / "" (no English name)
+    en_source: str = ""
+    kind: str = "department"   # department / institute / program / other
+    source_url: str = ""
+    source_year: str = ""
+    active: bool = True        # never deleted: a unit missing from a newer list is only marked inactive by a person
+
+
 class Affiliation(SQLModel, table=True):   # a person's academic home; past ones are kept with current = False
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     institution_id: int = Field(foreign_key="institution.id", index=True)
-    unit_key: str = ""         # NTHU department id from departments.json (e.g. "eecs-cs"); "" elsewhere
+    unit_key: str = ""         # NTHU department id from departments.json (e.g. "eecs-cs"), or "moe:<unit code>" for an official unit of another school; "" = typed
     unit_text: str = ""        # department as the person typed it (schools without a reviewed catalog)
     degree: str = ""           # bachelor / master / phd ("" for staff)
     student_id: str = ""       # exactly as typed (only trimmed)

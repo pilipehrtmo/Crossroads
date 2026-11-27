@@ -58,7 +58,13 @@ def colleges_of(dept_id: str) -> set:
 
 def display(u, lang: str = "en") -> str:
     """What a profile shows: the linked department in the reader's language, otherwise the free text as typed."""
-    return label(getattr(u, "dept_id", "") or "", getattr(u, "dept_track", "") or "", lang) or (u.faculty or "").strip()
+    lab = label(getattr(u, "dept_id", "") or "", getattr(u, "dept_track", "") or "", lang)
+    if lab: return lab
+    try:   # an official unit of another university (MOE list), in the reader's language when its English name is verified
+        from .academics import unit_name
+        lab = unit_name(u, lang)
+    except Exception: lab = ""
+    return lab or (u.faculty or "").strip()
 
 
 def key(u) -> str:

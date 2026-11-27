@@ -9,7 +9,7 @@ from app.main import app
 from app.db import engine, init_db
 from app import academics as AC, config
 from app.models import (User, Institution, InstitutionDomain, StudentIdRule, Affiliation, Project, Role, Application,
-                        Invitation, Block, Report, StudentVerification, VerificationEvent)
+                        Invitation, Block, Report, StudentVerification, VerificationEvent, AcademicUnit)
 
 PW = "Tr0ub4dor&3xyz"
 
@@ -20,7 +20,7 @@ def db():
     from app.main import HITS; HITS.clear()
     with Session(engine) as s:
         for t in (VerificationEvent, StudentVerification, Invitation, Block, Report, Application, Role, Project, Affiliation,
-                  StudentIdRule, InstitutionDomain, Institution, User):
+                  StudentIdRule, InstitutionDomain, AcademicUnit, Institution, User):
             for row in s.exec(select(t)).all(): s.delete(row)
         s.commit()
         yield s
@@ -90,7 +90,7 @@ def test_multi_school_signup_records_affiliation_and_keeps_nthu_path(db, monkeyp
     signup(TestClient(app), email="lin@ntu.edu.tw", student_id="R12345678", institution="0003", unit_text="Department of Psychology")
     u = db.exec(select(User).where(User.email == "lin@ntu.edu.tw")).first(); db.refresh(u)
     a = AC.current(db, u)
-    assert u.student_id == "" and u.faculty == "Department of Psychology" and a.student_id == "R12345678" and a.review == "id_format"
+    assert u.student_id == "" and u.faculty == "Department of Psychology" and a.student_id == "R12345678" and a.review == "id_format,unit"
     r = signup(TestClient(app), email="dup@ntu.edu.tw", name="Chen Hao", student_id="r12345678", institution="0003", unit_text="Dept of Law")
     assert "already has an account" in r.text and not db.exec(select(User).where(User.email == "dup@ntu.edu.tw")).first()
     signup(TestClient(app), email="ok@nccu.edu.tw", name="Wu Jie", student_id="R12345678", institution="0001", unit_text="Dept of Law")

@@ -22,6 +22,7 @@ qa/run_server.sh 8040 <test-db>            # VERIFY=1 to require email confirmat
 | `run_one.py`, `journey.py` | One journey; shared helpers | Yes |
 | `eye.py` | The password eye button works on the first click | Yes |
 | `admintour.py` | The admin tour in English and Chinese, laptop and phone | Yes |
+| `directory_e2e.py <port> <db> <shots>` | University/department search (EN/ZH, aliases, typos, keyboard, mobile), sign-up upload and skip, profile, 403s; saves screenshots (needs `MULTI_SCHOOL=1` and `academics names/units --apply`) | Yes |
 | `layout.py` | No horizontal scroll, cut text or tiny tap targets | Yes |
 | `rep_ui.py`, `deg_ui.py`, `tour_new.py` | Track record, degree and new-feature tour screens | Yes |
 

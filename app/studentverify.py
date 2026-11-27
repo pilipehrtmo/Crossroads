@@ -138,17 +138,30 @@ async def upload(doc_type: str = Form(""), consent: str = Form(""), file: Upload
     except DocError as e:
         from urllib.parse import quote
         return go("/verify-student?e=file&m=" + quote(str(e)))
-    key = f"verify/{user.id}/{secrets.token_hex(16)}.{ext}"
+    if not submit_clean(s, user, doc_type, (ext, mime, clean)): return go("/verify-student?e=store")
+    return go("/verify-student?n=sent")
+
+
+def submit_clean(s, user, doc_type, checked, note="") -> bool:
+    """Store one already-checked document (check_doc output) privately and put the person in the review queue.
+    The one way in for both the verification page and sign-up: an upload only ever means "needs_review", never verified.
+    False when storage is unavailable or refused the file (nothing is recorded then)."""
+    ext, mime, clean = checked
+    st = storage.verify_backend()
+    if st is None or doc_type not in DOC_TYPES: return False
+    u = s.get(User, user.id)
+    if not is_student(u) or state(u) not in OPEN_STATES: return False
+    key = f"verify/{u.id}/{secrets.token_hex(16)}.{ext}"
     try: st.put(key, clean, mime)
-    except storage.StorageError: return go("/verify-student?e=store")
-    r = SV(user_id=user.id, doc_type=doc_type, storage_key=key, mime=mime, size=len(clean))
-    s.add(r); u = s.get(User, user.id); again = state(u) in ("action_required", "rejected", "expired")
+    except storage.StorageError: return False
+    r = SV(user_id=u.id, doc_type=doc_type, storage_key=key, mime=mime, size=len(clean))
+    s.add(r); again = state(u) in ("action_required", "rejected", "expired")
     u.student_status = "needs_review"; s.commit(); s.refresh(r)
-    log(s, user.id, "submitted", user.id, r.id, "resubmitted" if again else ""); s.commit()
+    log(s, u.id, "submitted", u.id, r.id, "resubmitted" if again else note); s.commit()
     from .notify import notify
     admins = [a.id for a in s.exec(select(User).where(User.is_admin == True)).all()]
-    notify(s, admins, "verify_queue", f"{user.name or user.handle} sent a student verification document", "/admin/verification", None, user.id)
-    return go("/verify-student?n=sent")
+    notify(s, admins, "verify_queue", f"{u.name or u.handle} sent a student verification document", "/admin/verification", None, u.id)
+    return True
 
 
 # ---------- admin side ----------
