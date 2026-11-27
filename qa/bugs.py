@@ -56,6 +56,7 @@ with sync_playwright() as p:
     pg3.locator('.howto-a a[href="/signup"], .npost[href="/signup"]').first.click(); s = wait_step(pg3, "start", "/")
     pg3.locator("#lf .kind:has(input[value=student])").click(); pg3.wait_for_timeout(300); btn(pg3, "Next").click(); s = wait_step(pg3, "role", "/signup")
     pg3.fill("#e", w3["email"]); btn(pg3, "Next").click(); s = wait_step(pg3, "email", "/signup")
+    if s and s["key"] == "school": btn(pg3, "Next").click(); s = wait_step(pg3, "school", "/signup")   # multi-university sign-up: the university step
     pg3.fill("#n", w3["name"]); btn(pg3, "Next").click(); s = wait_step(pg3, "name", "/signup")
     ok(s["key"] == "sid", "B7 setup: at Student ID step")
     pg3.reload(); s = wait_step(pg3, None, None); pg3.wait_for_timeout(300)
