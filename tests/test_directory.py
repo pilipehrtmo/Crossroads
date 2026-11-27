@@ -36,7 +36,7 @@ def test_directory_import_is_additive_and_never_overwrites(db):
     assert code(db, "0002").name_en == "National Tsing Hua University"          # NTHU's reviewed name stays
     ntu = code(db, "0003"); assert ntu.name_en == "National Taiwan University" and ntu.aliases == "NTU" and ntu.en_status == "verified"
     assert "udb.moe.edu.tw" in ntu.en_source
-    assert code(db, "1020").en_status == "needs_review"                          # "Nanhua university" kept as published, flagged
+    assert code(db, "0050").en_status == "needs_review"                          # kept as MOE publishes it, flagged
     ntu.name_en = "Hand-checked name"; db.add(ntu); db.commit()
     out = AC.do_names(db, apply=True)
     assert out["set_en_n"] == 0 and ("0003", "name_en already set", "Hand-checked name", "National Taiwan University") in out["conflicts"]
@@ -91,6 +91,9 @@ def test_signup_document_goes_to_review_never_verified(db):
     assert u.student_status == "needs_review" and not u.verified and len(sv) == 1 and sv[0].state == "needs_review"
     ev = db.exec(select(VerificationEvent).where(VerificationEvent.user_id == u.id)).all()
     assert [e.action for e in ev] == ["submitted"] and ev[0].note == "at sign-up"
+    c.post("/signup", data=d, files={"vdoc": ("card.png", buf.getvalue(), "image/png")})          # the same form sent again
+    assert len(db.exec(select(StudentVerification).where(StudentVerification.user_id == u.id)).all()) == 1
+    assert len(db.exec(select(User).where(User.email == "d@ntu.edu.tw")).all()) == 1
     # a script disguised as an image is refused before any account exists
     c2 = TestClient(app); t2 = re.search(r'name="csrf" value="([^"]+)"', c2.get("/signup").text)[1]
     d.update(csrf=t2, email="e@ntu.edu.tw", student_id="B10000005")
@@ -140,3 +143,32 @@ def test_admin_affiliation_review_access_and_audit(db):
     db.refresh(a)
     assert a.unit_key == "moe:" + law.unit_code and "unit" not in a.review and a.student_id == "B10000008" and a.current
     assert db.exec(select(VerificationEvent).where(VerificationEvent.action == "affiliation_link")).first()
+
+
+SIX = {   # team review of the six names flagged in the first pass: 4 corrected from the schools' own sites, 2 still under review
+    "0050": ("National Taichung University Of Science And Technology", "needs_review", "udb.moe.edu.tw"),
+    "1020": ("Nanhua University", "verified", "en.nhu.edu.tw"),
+    "1052": ("CTBC University of Technology", "verified", "ctbctech.edu.tw"),
+    "1196": ("Dharma Drum Institute of Liberal Arts", "verified", "dila.edu.tw"),
+    "1285": ("TZU HUI Institute of Technology", "needs_review", "udb.moe.edu.tw"),
+    "1286": ("Cardinal Tien Junior College of Healthcare and Management", "verified", "ctcn.edu.tw"),
+}
+MOE_TEXT = {"1020": "Nanhua university", "1052": "CTBC UNIVERSITY OF TECHNOLOGY", "1196": "Dharma Drum Institute of Liberal Art",
+            "1286": "Cardinal Tien Junior College of Healthcare And Management"}
+
+
+@pytest.mark.parametrize("moe", sorted(SIX))
+def test_six_reviewed_names_in_db_and_dataset(db, moe):
+    name, status, host = SIX[moe]
+    i = code(db, moe)
+    assert (i.name_en, i.en_status) == (name, status) and host in i.en_source
+    row = {r["moe_code"]: r for r in AC._read_pipe(AC.DIR_CSV)}[moe]
+    assert (row["name_en"], row["en_status"]) == (name, status) and host in row["en_source"]
+    assert row["moe114_en"] == MOE_TEXT.get(moe, name)                           # the MOE-published text is kept for provenance
+    assert row["aliases"] == i.aliases and i.aliases                             # abbreviations untouched
+
+
+def test_review_counts_and_no_name_lost(db):
+    rows = AC._read_pipe(AC.DIR_CSV)
+    assert sum(r["en_status"] == "needs_review" for r in rows) == 2 and sum(r["en_status"] == "verified" for r in rows) == 137
+    assert all(r["name_en"] for r in rows) and len({r["moe_code"] for r in rows}) == 139
