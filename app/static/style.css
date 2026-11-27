@@ -1298,4 +1298,4 @@ select:not([multiple]):focus-visible{outline:none;border-color:var(--pri);box-sh
 .vdrop .vdrop-act{margin-left:auto;position:relative;z-index:2;white-space:nowrap}
 .vprog{height:6px;border-radius:99px;background:var(--line);overflow:hidden;margin:.6rem 0 0}.vprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--pri),var(--pri2));transition:width .15s}
 .vskip{margin:.5rem 0 0}
-.vchk{display:flex;gap:.5rem;align-items:center;font-weight:500}.vchk input{width:auto;flex:none}
+.vconsent{display:flex;gap:.5rem;align-items:center;font-weight:500}.vconsent input{width:auto;flex:none}

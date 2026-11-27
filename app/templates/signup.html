@@ -41,7 +41,7 @@ i.addEventListener("change",sync);document.querySelectorAll("input[name=role]").
 <button type="button" class="ghost vdrop-act" id="vfr" hidden>Remove</button></div>
 <p class="err fine" id="vfe" role="alert" hidden></p>
 <p class="muted fine" id="vfh">It must show your name, your university, your student ID and that you study there now. It goes to private storage only admins can open, and is deleted 14 days after approval or 30 days after a rejection.</p>
-<label class="vchk" id="vcons"><input type="checkbox" name="consent" value="1" data-opt {{ "checked" if f.get("consent") }}><span>I agree that admins may view this document only to verify me, and that it is deleted as described above.</span></label></div>
+<label class="vconsent" id="vcons"><input type="checkbox" name="consent" value="1" data-opt {{ "checked" if f.get("consent") }}><span>I agree that admins may view this document only to verify me, and that it is deleted as described above.</span></label></div>
 <p class="box fine vskip" id="vskipnote" hidden><b>Your account will stay Pending</b> until a document is approved. You can still apply for up to 3 seats at a time, but you can't publish projects, send invitations or appear in Find teammates. You can upload it later from Student verification.</p>
 <div class="vprog" id="vprog" hidden role="progressbar" aria-label="Upload progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div><p class="muted fine" id="vprogt" hidden aria-live="polite"></p>
 </section>
