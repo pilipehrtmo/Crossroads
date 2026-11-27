@@ -172,3 +172,12 @@ def test_review_counts_and_no_name_lost(db):
     rows = AC._read_pipe(AC.DIR_CSV)
     assert sum(r["en_status"] == "needs_review" for r in rows) == 2 and sum(r["en_status"] == "verified" for r in rows) == 137
     assert all(r["name_en"] for r in rows) and len({r["moe_code"] for r in rows}) == 139
+
+
+def test_bootstrap_runs_once_and_only_fills(db):
+    assert AC.bootstrap(db) is None                                               # departments already there: nothing happens
+    for u in db.exec(select(AcademicUnit)).all(): db.delete(u)
+    i = code(db, "0003"); i.name_en = "Kept as set"; db.add(i); db.commit()
+    r = AC.bootstrap(db)
+    assert r["units_added"] == len(db.exec(select(AcademicUnit)).all()) > 3000 and r["names_set"] == 0 and r["name_conflicts"] == 1
+    assert code(db, "0003").name_en == "Kept as set" and AC.bootstrap(db) is None

@@ -352,6 +352,16 @@ def do_units(s, apply=False):
     return out
 
 
+def bootstrap(s):
+    """First start after the directory release only: when the department table is still empty, run exactly the
+    'names --apply' and 'units --apply' steps (fill-empty-only and add-missing-only, see above). Afterwards the table is
+    never empty again, so later data updates go through the dry-run commands by hand."""
+    if s.exec(select(AcademicUnit.id)).first() is not None or s.exec(select(Institution.id)).first() is None: return None
+    n = do_names(s, apply=True); u = do_units(s, apply=True)
+    return dict(names_set=n["set_en_n"], aliases_set=n["set_aliases"], name_conflicts=len(n["conflicts"]), units_added=u["add"],
+                unit_name_changes=len(u["name_changed"]))
+
+
 def do_check(s):
     users = [u for u in s.exec(select(User)).all() if not u.is_admin]
     cur = s.exec(select(Affiliation).where(Affiliation.current == True)).all()

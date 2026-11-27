@@ -75,6 +75,13 @@ async def lifespan(app):
         print(">>> DATABASE CONNECTION FAILED:", type(e).__name__, str(e).splitlines()[0][:300], flush=True); raise
     print(">>> startup: database ready, seeding", flush=True)
     seed(); seed_starter(); seed_programs(); name_handles()
+    from .config import MULTI_SCHOOL
+    if MULTI_SCHOOL:   # one-time load of the bilingual directory (no-op once departments exist), see academics.bootstrap
+        try:
+            from . import academics as AC
+            with Session(engine) as s0: r = AC.bootstrap(s0)
+            if r: print(">>> startup: directory loaded", r, flush=True)
+        except Exception as e: print(">>> startup: directory load skipped:", type(e).__name__, str(e)[:200], flush=True)
     if not DEMO_DATA: seed_examples()
     if DEMO_DATA:
         from .demo_data import seed_demo; seed_demo(); print(">>> DEMO MODE: sample teams loaded into a separate database. Do not share this server with real users.")
