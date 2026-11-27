@@ -70,10 +70,13 @@ def candidates(s, pr, r, lead, college="", degree="", other_college=False):
     blocked_ids = {b.blocked_id for b in blocks} | {b.blocker_id for b in blocks}
     from .academics import institution_of_factory
     inst_of = institution_of_factory(s); lead_inst = inst_of(s.get(User, pr.owner_id))
+    from .eligibility import project_inst
+    only = project_inst(pr, r)   # professor-led research: same university only
     out = []
     for u in s.exec(select(User).where(User.open_to_join == True, User.verified == True, User.banned == False,
                                        User.is_admin == False, User.is_faculty == False)).all():
         if u.id in team or u.id in blocked_ids or not _same_world(pr, u): continue
+        if only is not None and inst_of(u) != only: continue
         cols = DEP.colleges_of(u.dept_id or "")
         if college and college not in cols: continue
         if degree and (u.degree or "") != degree: continue
@@ -116,6 +119,8 @@ def invite(rid: int, uid: int, message: str = Form(""), user=Depends(me), s: Ses
     u = s.get(User, uid)
     if not discoverable(u) or not _same_world(pr, u) or u.id == pr.owner_id: return go(back + "?n=notopen")
     if blocked(s, pr.owner_id, u.id) or blocked(s, user.id, u.id): return go(back + "?n=notopen")
+    from .eligibility import for_project
+    if not for_project(s, u, pr, r)[0]: return go(back + "?n=notelig")
     if s.exec(select(Invitation.id).where(Invitation.role_id == rid, Invitation.user_id == uid)).first(): return go(back + "?n=already")
     if s.exec(select(Application.id).where(Application.role_id == rid, Application.user_id == uid, Application.status.in_(["pending", "accepted"]))).first():
         return go(back + "?n=applied")
@@ -152,7 +157,8 @@ def decide_invitation(iid: int, decision: str, user=Depends(me), s: Session = De
         notify(s, [inv.from_id], "invite_decision", f"{user.name or user.handle} declined your invitation to {pr.title}", f"/projects/{pr.id}#seats", pr.id, user.id)
         return go("/activity?n=invdeclined#invites")
     d = days_left(pr.deadline)
-    if pr.status != "open" or (d is not None and d < 0) or blocked(s, pr.owner_id, user.id) or user.banned:
+    from .eligibility import for_project
+    if pr.status != "open" or (d is not None and d < 0) or blocked(s, pr.owner_id, user.id) or user.banned or not for_project(s, user, pr, r)[0]:
         inv.status, inv.decided_at = "closed", datetime.utcnow(); s.commit()
         return go("/activity?n=invclosed#invites")
     if not take_seat(s, r.id):   # someone else got the seat first (an application or another invitation)

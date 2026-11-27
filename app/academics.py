@@ -17,6 +17,7 @@ Safe migration (python -m app.academics ...), every step dry-run unless --apply:
   import     add/refresh institutions from data/institutions_moe.csv (+ NTHU domains, rule, renewal date)
   migrate    give every existing account without an affiliation an NTHU one, copying its department, degree and student
              ID unchanged; refuses if two accounts would share an NTHU student ID
+  research   mark unclassified Research projects "review"; give each research position its professor's university
   check      counts that must match after migrating (users vs current affiliations, duplicates)
 Rollback: MULTI_SCHOOL=0 hides the new sign-up fields; affiliations are additive and can be ignored or deleted.
 """
@@ -82,10 +83,59 @@ def sid_taken(s, inst_id, sid) -> bool:
 
 def attach(s, u, inst, degree="", sid="", unit_key="", unit_text="", kind="student", review=""):
     """Record a new current affiliation (the caller commits)."""
+    forget_ident()
     for old in s.exec(select(Affiliation).where(Affiliation.user_id == u.id, Affiliation.current == True)).all(): old.current = False
     a = Affiliation(user_id=u.id, institution_id=inst.id, unit_key=unit_key, unit_text=unit_text[:80], degree=degree,
                     student_id=(sid or "").strip()[:20], sid_norm=norm_sid(sid)[:20], kind=kind, review=review)
     s.add(a); return a
+
+
+# ---------- identity tags: every person is shown with their university and their role ----------
+ROLE_T = {"en": {"student": "Student", "professor": "Professor", "researcher": "Researcher", "admin": "Admin"},
+          "zh": {"student": "學生", "professor": "教授", "researcher": "研究人員", "admin": "管理員"}}
+NO_INST = {"en": "University not set", "zh": "尚未設定學校"}
+_ID = {"at": 0.0, "aff": {}, "inst": {}}
+
+
+def forget_ident(): _ID["at"] = 0.0
+
+
+def _ident_cache():
+    """{user_id: (institution_id, kind)} for current affiliations and {institution_id: (name_en, name_zh)}, kept 30 s."""
+    import time
+    if time.time() - _ID["at"] > 30:
+        from .db import engine
+        with Session(engine) as s:
+            _ID["inst"] = {i.id: (i.name_en, i.name_zh) for i in s.exec(select(Institution)).all()}
+            _ID["aff"] = {a.user_id: (a.institution_id, a.kind) for a in s.exec(select(Affiliation).where(Affiliation.current == True)).all()}
+        _ID["at"] = time.time()
+    return _ID
+
+
+def inst_name(iid, lang="en"):
+    """Official English name when it has been checked, otherwise the official Chinese name; never a made-up translation."""
+    n = _ident_cache()["inst"].get(iid)
+    if not n: return ""
+    return n[1] if lang == "zh" or not n[0] else n[0]
+
+
+def ident(u, lang="en"):
+    """What every profile shows: university (from the person's own current affiliation, never guessed from the email or
+    department) and role. No affiliation = inst "" (shown as "University not set")."""
+    if not u: return None
+    lang = "zh" if lang == "zh" else "en"
+    a = _ident_cache()["aff"].get(u.id)
+    kind = a[1] if a else ""
+    if u.role == "faculty": role = "researcher" if kind == "researcher" else "professor"
+    elif u.is_admin and not a: role = "admin"
+    else: role = "student"
+    return dict(inst=inst_name(a[0], lang) if a else "", inst_id=a[0] if a else None, role=role, role_label=ROLE_T[lang][role],
+                none_label=NO_INST[lang])
+
+
+def institution_id_of(s, u):
+    a = current(s, u)
+    return a.institution_id if a else None
 
 
 def label(s, u, lang="en"):
@@ -157,6 +207,26 @@ def do_migrate(s, apply=False):
     return dict(accounts=len(todo), applied=apply)
 
 
+def do_research(s, apply=False):
+    """Research eligibility data, after 'migrate':
+    * Research projects with no explicit research_mode are marked "review" (kept open as before, listed for admins):
+      the mode is never guessed from the owner's role or the title.
+    * Every research position (Opening) is professor-led by definition: it gets its professor's current university.
+      A professor with no university on record is reported, not guessed."""
+    from .models import Project, Opening
+    review = [p for p in s.exec(select(Project).where(Project.kind == "Research")).all() if p.research_mode not in ("student", "advisor", "review")]
+    fix, unresolved = [], []
+    for o in s.exec(select(Opening).where(Opening.institution_id == None)).all():
+        a = current(s, s.get(User, o.owner_id))
+        (fix if a else unresolved).append((o, a.institution_id if a else None))
+    if apply:
+        for p in review: p.research_mode = "review"; s.add(p)
+        for o, iid in fix: o.institution_id = iid; s.add(o)
+        s.commit()
+    return dict(research_to_review=[p.id for p in review], openings_set={o.id: iid for o, iid in fix},
+                openings_unresolved=[o.id for o, _ in unresolved], applied=apply)
+
+
 def do_check(s):
     users = [u for u in s.exec(select(User)).all() if not u.is_admin]
     cur = s.exec(select(Affiliation).where(Affiliation.current == True)).all()
@@ -172,6 +242,6 @@ if __name__ == "__main__":
     init_db()
     cmd, apply = (sys.argv[1] if len(sys.argv) > 1 else "check"), "--apply" in sys.argv
     with Session(engine) as s:
-        out = {"import": do_import, "migrate": do_migrate}.get(cmd, lambda s, apply=False: do_check(s))(s, apply) if cmd != "check" else do_check(s)
+        out = {"import": do_import, "migrate": do_migrate, "research": do_research}.get(cmd, lambda s, apply=False: do_check(s))(s, apply) if cmd != "check" else do_check(s)
     print(out)
-    if cmd in ("import", "migrate") and not apply: print("dry run: nothing written (add --apply)")
+    if cmd in ("import", "migrate", "research") and not apply: print("dry run: nothing written (add --apply)")

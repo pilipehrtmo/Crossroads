@@ -124,6 +124,11 @@ class Project(SQLModel, table=True):
     deadline: str = ""
     status: str = "open"      # open / closed / completed (the lead marked it done; see Contribution)
     origin: str = Field(default="real", sa_column_kwargs={"server_default": "real"})      # real / seed / demo, as on User; set from a reviewed id list, never from the title
+    # Research projects only (see eligibility.py): "student" = student-led, open to students of every university;
+    # "advisor" = professor-led, only students of institution_id may join; "review" = an older record nobody has
+    # classified yet (open, listed for admins). Chosen explicitly on the form, never inferred from the owner or title.
+    research_mode: str = Field(default="", sa_column_kwargs={"server_default": ""})
+    institution_id: Optional[int] = Field(default=None, foreign_key="institution.id")
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[NaiveDatetime] = None
 
@@ -253,6 +258,7 @@ class Opening(SQLModel, table=True):    # a research position a professor offers
     deadline: str = ""        # YYYY-MM-DD or empty
     process: str = ""         # how to apply and what happens next
     status: str = "open"      # open / closed
+    institution_id: Optional[int] = Field(default=None, foreign_key="institution.id")   # the professor's university for this position: only its students may apply
     created: NaiveDatetime = Field(default_factory=datetime.utcnow)
 
 class OpeningApp(SQLModel, table=True): # a student's application for a research position

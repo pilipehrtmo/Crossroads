@@ -16,7 +16,7 @@ from .db import get_session, engine
 from .models import (User, Project, Role, Application, Remark, RemarkEvent, DocVersion, Milestone, Opening, OpeningApp,
                      FEEDBACK_CATEGORIES, FEEDBACK_PRIORITIES)
 from . import validate as V
-from .main import app, render, me, go, limited, days_left, tags, kind_of, templates
+from .main import app, render, me, go, limited, days_left, tags, kind_of, templates, pick_lang
 from .links import LinkError
 
 URL_RE = re.compile(r"https?://[^\s<>\"']+", re.I)
@@ -434,6 +434,22 @@ def research(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     openings.sort(key=lambda x: not x["fy"])   # "For you" first; otherwise newest first, as before
     return render(req, "research.html", user, openings=openings, profs=profs, counts=counts, mytags=mine)
 
+def opening_insts(s, user, lang="en"):
+    """[(institution id, name)] the professor may publish under: their own current affiliations."""
+    from .eligibility import own_institutions
+    from .academics import inst_name
+    return [(i, inst_name(i, lang)) for i in own_institutions(s, user)]
+
+def read_opening_inst(s, form, user, o=None):
+    """The professor's university for this position, chosen explicitly; must be one of their own affiliations."""
+    from .eligibility import own_institutions
+    mine = own_institutions(s, user)
+    v = str(form.get("institution_id", "")).strip()
+    iid = int(v) if v.isdigit() else (mine[0] if len(mine) == 1 else None)
+    if iid is not None and (iid in mine or (o is not None and iid == o.institution_id)): return iid, ""
+    if not mine: return None, "Your account has no university on record yet, so a research position can't say whose students may apply. Ask an admin to add your affiliation."
+    return None, "Choose the university this position belongs to. Only its students will be able to apply."
+
 def read_opening(form):
     f = {k: str(form.get(k, "")).replace("\r", "").strip() for k in ("title", "description", "skills", "requirements", "hours", "positions", "deadline", "process")}
     out = dict(title=re.sub(r"\s+", " ", f["title"])[:120], description=f["description"][:2000],
@@ -457,17 +473,19 @@ def _prof_only(user):
 def opening_new(req: Request, user=Depends(me)):
     if not user: return go("/login")
     if not _prof_only(user): return go("/research")
-    return render(req, "opening_form.html", user, o=None, error="")
+    with Session(engine) as s: insts = opening_insts(s, user, pick_lang(req))
+    return render(req, "opening_form.html", user, o=None, error="", insts=insts)
 
 @app.post("/openings/new", dependencies=[limited("opening", 20, 3600)])
 async def opening_create(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     if not _prof_only(user): return go("/research")
-    f, err = read_opening(await req.form())
+    form = await req.form(); f, err = read_opening(form)
+    iid, ierr = read_opening_inst(s, form, user); f["institution_id"] = iid; err = err or ierr
     if not err and f["deadline"] and days_left(f["deadline"]) < 0: err = "The application deadline is in the past."
     if not err and len(s.exec(select(Opening.id).where(Opening.owner_id == user.id, Opening.status == "open")).all()) >= 10:
         err = "You can have at most 10 open positions. Close one first."
-    if err: return render(req, "opening_form.html", user, o=Opening(owner_id=user.id, **f), error=err)
+    if err: return render(req, "opening_form.html", user, o=Opening(owner_id=user.id, **f), error=err, insts=opening_insts(s, user, pick_lang(req)))
     o = Opening(owner_id=user.id, **f); s.add(o); s.commit(); s.refresh(o)
     return go(f"/openings/{o.id}")
 
@@ -482,7 +500,13 @@ def opening_page(req: Request, oid: int, user=Depends(me), s: Session = Depends(
         for a in s.exec(select(OpeningApp).where(OpeningApp.opening_id == oid).order_by(OpeningApp.at)).all():
             apps.append((a, s.get(User, a.user_id)))
     mine = s.exec(select(OpeningApp).where(OpeningApp.opening_id == oid, OpeningApp.user_id == user.id)).first() if user else None
-    return render(req, "opening.html", user, o=o, prof=prof, is_owner=is_owner, apps=[x for x in apps if x[1]], mine=mine,
+    from .eligibility import for_opening, opening_inst, reason_text
+    from .academics import inst_name
+    lang = pick_lang(req); only = opening_inst(o)
+    elig = for_opening(s, user, o) if user and not is_owner and user.role != "faculty" else (True, "")
+    return render(req, "opening.html", user, only_inst=inst_name(only, lang) if only and only > 0 else "", elig_ok=elig[0],
+                  elig_msg=reason_text(s, user, only, elig[1], lang) if not elig[0] else "",
+                  o=o, prof=prof, is_owner=is_owner, apps=[x for x in apps if x[1]], mine=mine,
                   mytags=tags(user.skills) if user else set(), notice=req.query_params.get("n", ""), **st)
 
 @app.get("/openings/{oid}/edit")
@@ -490,18 +514,19 @@ def opening_edit(req: Request, oid: int, user=Depends(me), s: Session = Depends(
     o = s.get(Opening, oid)
     if not o: raise HTTPException(404)
     if not user or user.id != o.owner_id: return go(f"/openings/{oid}")
-    return render(req, "opening_form.html", user, o=o, error="")
+    return render(req, "opening_form.html", user, o=o, error="", insts=opening_insts(s, user, pick_lang(req)))
 
 @app.post("/openings/{oid}/edit", dependencies=[limited("openingedit", 40, 3600)])
 async def opening_save(req: Request, oid: int, user=Depends(me), s: Session = Depends(get_session)):
     o = s.get(Opening, oid)
     if not o: raise HTTPException(404)
     if not user or user.id != o.owner_id: return go(f"/openings/{oid}")
-    f, err = read_opening(await req.form())
+    form = await req.form(); f, err = read_opening(form)
+    iid, ierr = read_opening_inst(s, form, user, o); f["institution_id"] = iid; err = err or ierr
     if not err and f["deadline"] and days_left(f["deadline"]) < 0 and f["deadline"] != o.deadline: err = "The application deadline is in the past."
     if err:
         for k, v in f.items(): setattr(o, k, v)
-        s.expunge(o); return render(req, "opening_form.html", user, o=o, error=err)
+        s.expunge(o); return render(req, "opening_form.html", user, o=o, error=err, insts=opening_insts(s, user, pick_lang(req)))
     for k, v in f.items(): setattr(o, k, v)
     s.add(o); s.commit(); return go(f"/openings/{oid}")
 
@@ -526,6 +551,8 @@ def opening_apply(oid: int, message: str = Form(""), user=Depends(me), s: Sessio
     if not o: raise HTTPException(404)
     if user.id == o.owner_id or user.role == "faculty": return go(f"/openings/{oid}")
     if not opening_state(s, o)["taking"]: return go(f"/openings/{oid}?n=closed")
+    from .eligibility import for_opening
+    if not for_opening(s, user, o)[0]: return go(f"/openings/{oid}?n=notelig")   # professor-led: same university only
     message = V.normalize_text(message)
     if len(message) < V.NOTE_MIN: return go(f"/openings/{oid}?n=short")
     if len(message) > V.NOTE_MAX: return go(f"/openings/{oid}?n=long")
@@ -556,6 +583,8 @@ def opening_decide(aid: int, decision: str, next: str = Form(""), user=Depends(m
         return go("/activity?n=withdrawn" if next == "/activity" else f"/openings/{o.id}?n=withdrawn")
     if user.id == o.owner_id and a.status == "pending" and decision in ("accepted", "rejected"):
         if decision == "accepted" and opening_state(s, o)["full"]: return go(f"/openings/{o.id}?n=full")
+        from .eligibility import for_opening
+        if decision == "accepted" and not for_opening(s, s.get(User, a.user_id), o)[0]: return go(f"/openings/{o.id}?n=notelig_member#applicants")
         a.status = decision; s.add(a); s.commit()
         from .notify import notify
         notify(s, [a.user_id], "lab_decision", f"{'You were accepted for' if decision == 'accepted' else 'Your application was not accepted for'} {o.title}", f"/openings/{o.id}", None, user.id)

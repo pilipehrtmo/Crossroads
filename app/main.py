@@ -25,6 +25,7 @@ from .cv import parse_cv, CVError, MAX_BYTES
 from . import validate as V
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
 from . import guide
+from . import academics as AC
 from .photo import make_avatar, PhotoError, MAX_UPLOAD
 from .faculty import staff_email, nthu_url, nthu_email, shared_domain, academic_email
 STUDENT_EMAIL_RULE = os.getenv("STUDENT_EMAIL_RULE", "any")   # "nthu" = students must sign up with an NTHU address (see faculty.nthu_email)
@@ -241,6 +242,12 @@ def facbadge(u):   # green badge for verified professors/advisors, showing the t
     if not (u and u.is_faculty): return ""
     return Markup(f'<span class="pill fac" title="Verified teaching staff">✔ {escape(u.title or "Faculty")}</span>')
 templates.env.filters["dn"] = dn; templates.env.globals.update(initials=initials, pic=pic, facbadge=facbadge)
+def idtags(u, lang="en"):   # university + role, shown next to a person's name everywhere they appear
+    d = AC.ident(u, lang)
+    if not d: return ""
+    inst = f'<span class="idt idt-inst" title="{escape(d["inst"])}">{escape(d["inst"])}</span>' if d["inst"] else f'<span class="idt idt-inst idt-none">{escape(d["none_label"])}</span>'
+    return Markup(f'<span class="idtags">{inst}<span class="idt idt-role idt-{d["role"]}">{escape(d["role_label"])}</span></span>')
+templates.env.globals["idtags"] = idtags
 
 def name_handles():   # one-time: users who still have a random "student-xxxxxx" address get one made from their name
     with Session(engine) as s:
@@ -824,7 +831,10 @@ def project_form(req, user, s, pr=None, seats=None, error="", **kw):
         groups.setdefault(c.category or "Other", []).append(c)
     clubs = sorted({n for n in s.exec(select(Project.event_name).where(Project.kind == "Club or event")).all() if n}, key=str.lower)[:200]
     from .docs import uploads_on
-    return render(req, "new.html", user, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), dup=kw.get("dup"), uploads_on=uploads_on(), kind=kind, kinds=PROJECT_KINDS, sel=sel,
+    from .eligibility import own_institutions
+    lang = pick_lang(req)
+    rinsts = [(i, AC.inst_name(i, lang)) for i in own_institutions(s, user)] if user and user.is_faculty else []
+    return render(req, "new.html", user, rinsts=rinsts, pr=pr, seats=seats or [], error=error, filled=kw.get("filled", []), dup=kw.get("dup"), uploads_on=uploads_on(), kind=kind, kinds=PROJECT_KINDS, sel=sel,
                   today=datetime.utcnow().date().isoformat(), comps=comps, cgroups=sorted(groups.items(), key=lambda g: (g[0] == "Other", g[0])), clubs=clubs, days_left=days_left)
 
 SEAT_FIELDS = ("name", "skills", "nice_skills", "about", "must", "nice", "years", "years_in", "beginner")
@@ -900,7 +910,24 @@ def seats_problem(seats, stored=None):
         if p: return f"“{x['name']}”: {p}"
     return ""
 
-def read_project_form(form, pr=None, stored_seats=None):
+def read_research_mode(s, form, kind, user, pr=None):
+    """(research_mode, institution_id, error). Research projects must say explicitly who leads them; professor-led
+    research needs a verified professor and one of their own universities (only its students may join)."""
+    if kind != "Research": return "", None, ""
+    from .eligibility import MODES, own_institutions
+    mode = str(form.get("research_mode", "")).strip()
+    keep_mode = pr.research_mode if pr is not None and pr.research_mode in MODES else ""
+    if mode not in MODES: return keep_mode, (pr.institution_id if pr is not None and keep_mode == "advisor" else None), "Choose who leads this research: students (open to students of every university) or a professor (only students of the professor's university)."
+    if mode == "student": return "student", None, ""
+    if not (user and user.is_faculty): return keep_mode, None, "Only a verified professor can publish professor-led research. Choose student-led, or ask the professor to publish it."
+    mine = own_institutions(s, user) if s is not None else []
+    v = str(form.get("research_inst", "")).strip()
+    iid = int(v) if v.isdigit() else (mine[0] if len(mine) == 1 else None)
+    if iid is not None and (iid in mine or (pr is not None and iid == pr.institution_id)): return "advisor", iid, ""
+    if not mine: return "advisor", None, "Your account has no university on record yet, so professor-led research can't say whose students may join. Ask an admin to add your affiliation, or choose student-led."
+    return "advisor", None, "Choose the university this research belongs to. Only its students will be able to join."
+
+def read_project_form(form, pr=None, stored_seats=None, user=None, s=None):
     """Check the project form. Returns (fields, seat lines, error)."""
     f = {k: str(form.get(k, "")).strip() for k in ("title", "description", "competition_id", "hours", "deadline", "roles", "kind", "category", "stage")}
     f["description"] = V.normalize_text(f["description"])
@@ -930,6 +957,8 @@ def read_project_form(form, pr=None, stored_seats=None):
                competition_id=int(f["competition_id"]) if f["competition_id"].isdigit() and kind == "Competition" else None, event_name=event)
     for k, _ in PITCH_FIELDS: out[k] = pitch[k] if kind == "Startup" else ""
     for k, n in RESEARCH_PLAN: out[k] = str(form.get(k, "")).replace("\r", "").strip()[:n] if kind == "Research" else ""
+    out["research_mode"], out["institution_id"], rerr = read_research_mode(s, form, kind, user, pr)
+    if not err: err = rerr
     out["tags"] = tags_str(form.get("tags", ""))
     out["links"] = json.dumps(parse_links(str(form.get("links_json", ""))), ensure_ascii=False)
     return out, seats, err
@@ -949,7 +978,7 @@ def new_project(req: Request, comp: str = "", kind: str = "", user=Depends(me), 
 async def create_project(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not user: return go("/login")
     form = await req.form()
-    f, seats, err = read_project_form(form)
+    f, seats, err = read_project_form(form, user=user, s=s)
     if not seats and not err: err = "Add at least one open seat, so people know who you need."
     if not can_publish(user): err = "Publishing a project needs a verified account. Send your student verification document first; you can apply for seats meanwhile."
     if err:
@@ -987,7 +1016,7 @@ async def save_project(req: Request, pid: int, user=Depends(me), s: Session = De
     if not pr: raise HTTPException(404)
     if not user or user.id != pr.owner_id: return go(f"/projects/{pid}")
     roles = s.exec(select(Role).where(Role.project_id == pid).order_by(Role.id)).all()
-    f, seats, err = read_project_form(await req.form(), pr, {r.id: r.skills or "" for r in roles})
+    f, seats, err = read_project_form(await req.form(), pr, {r.id: r.skills or "" for r in roles}, user=user, s=s)
     open_roles = [r for r in roles if not r.filled]
     if err:
         for k, v in f.items(): setattr(pr, k, v)
@@ -1031,6 +1060,12 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
                         cov=cov, cov_label=cov_text(cov, lang) if cov else None, why=explain(cov, lang) if cov else [],
                         app_cov={a.id: cov_text(coverage(u.skills, r), lang) for a, u in apps if u and not r.advisor and (is_owner or (user and user.is_admin))},
                         inv_pending=len(s.exec(select(Invitation.id).where(Invitation.role_id == r.id, Invitation.status == "pending")).all()) if is_owner else 0))
+    from .eligibility import for_project, project_inst, reason_text, team_universities
+    lang = pick_lang(req)
+    only = project_inst(pr)   # professor-led research: the university its student seats are for
+    elig = for_project(s, user, pr) if user and only is not None and not is_owner else (True, "")
+    elig_msg = reason_text(s, user, only, elig[1], lang) if not elig[0] else ""
+    unis = team_universities(s, [pr.owner_id] + [u.id for u, _ in ti["members"]])
     reveal = bool(user and any(a.status == "accepted" and u.id == user.id for r in out for a, u in r["apps"]))
     days = days_left(pr.deadline)
     accepting = pr.status == "open" and not (days is not None and days < 0)
@@ -1046,7 +1081,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
     from .opps import saved_ids
     talks = s.exec(select(Post).where(Post.project_id == pid, Post.hidden == False).order_by(Post.created.desc()).limit(5)).all() if user else []
     from .reputation import panel
-    return render(req, "project.html", user, comp_panel=panel(s, pr, user), talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, gap=ti["gap"], reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
+    return render(req, "project.html", user, members=ti["members"], advisors=ti["advisors"], only_inst=AC.inst_name(only, lang) if only and only > 0 else "", elig_ok=elig[0], elig_msg=elig_msg, n_unis=len(unis), comp_panel=panel(s, pr, user), talks=talks, checks=checks, sup=sup, docsec=docsec, saved=pid in saved_ids(s, user, "project"), err=req.query_params.get("err", "")[:200], insider=insider, accepting=accepting, notice=req.query_params.get("n", ""), pr=pr, owner=owner, is_owner=is_owner, roles=out, gap=ti["gap"], reveal=reveal, mytags=tags(user.skills) if user else set(), days=days,
                   comp=s.get(Competition, pr.competition_id) if pr.competition_id else None)
 
 @app.get("/projects/{pid}/onepager")
@@ -1089,6 +1124,8 @@ def apply(rid: int, message: str = Form(""), user=Depends(me), s: Session = Depe
     if r.filled or pr.status != "open" or (d is not None and d < 0): return go(f"/projects/{pr.id}?n=closed")
     if pr.owner_id == user.id: return go(f"/projects/{pr.id}")
     if r.advisor and not user.is_faculty: return go(f"/projects/{pr.id}?n=facultyonly")
+    from .eligibility import for_project
+    if not for_project(s, user, pr, r)[0]: return go(f"/projects/{pr.id}?n=notelig#seat-{rid}")   # professor-led research: same university only
     from .invites import blocked
     if blocked(s, pr.owner_id, user.id): return go(f"/projects/{pr.id}?n=closed")
     dup = s.exec(select(Application).where(Application.role_id == rid, Application.user_id == user.id)).first()
@@ -1136,6 +1173,9 @@ def decide(aid: int, decision: str, next: str = Form(""), user=Depends(me), s: S
         notify(s, [a.user_id], "removed", f"You were removed from the {r.name} seat of {pr.title}", f"/projects/{pr.id}", pr.id, user.id)
         return go(f"/projects/{pr.id}?n=removed#seats")
     if user.id == pr.owner_id and a.status == "pending" and decision in ("accepted", "rejected") and not r.filled:
+        from .eligibility import for_project
+        if decision == "accepted" and not for_project(s, s.get(User, a.user_id), pr, r)[0]:   # checked again at acceptance
+            return go(f"/projects/{pr.id}?n=notelig_member#seats")
         if decision == "accepted" and not take_seat(s, r.id):   # someone else got the seat a moment ago (two tabs, two clicks)
             s.rollback(); s.refresh(a)   # a double click on the same Accept: the first click already did it
             return go(f"/projects/{pr.id}" if a.status == "accepted" else f"/projects/{pr.id}?n=seatfull#seats")
@@ -1342,13 +1382,30 @@ def admin_dept(req: Request, uid: int, choice: str = Form(""), action: str = For
     s.add(u); s.commit()
     return go("/admin#depts")
 
+@app.post("/admin/research/{pid}/{mode}")
+def admin_research_mode(pid: int, mode: str, user=Depends(me), s: Session = Depends(get_session)):
+    """An admin classifies an older Research project that nobody classified: student-led, or professor-led under the
+    owner's university (only when the owner is a verified professor with a university on record)."""
+    if not (user and user.is_admin): raise HTTPException(403)
+    pr = s.get(Project, pid)
+    if not pr or pr.kind != "Research" or mode not in ("student", "advisor"): raise HTTPException(404)
+    if mode == "advisor":
+        owner = s.get(User, pr.owner_id); iid = AC.institution_id_of(s, owner) if owner else None
+        if not (owner and owner.is_faculty and iid): return go("/admin?rn=noprof#research")
+        pr.research_mode, pr.institution_id = "advisor", iid
+    else: pr.research_mode, pr.institution_id = "student", None
+    s.add(pr); s.commit(); return go("/admin?rn=done#research")
+
 @app.get("/admin")
 def admin(req: Request, user=Depends(me), s: Session = Depends(get_session)):
     if not (user and user.is_admin): return go("/")
     from .reputation import admin_queue
     from .models import StudentVerification
     vwaiting = len(s.exec(select(StudentVerification.id).where(StudentVerification.state == "needs_review")).all())
-    return render(req, "admin.html", user, vwaiting=vwaiting, trackq=admin_queue(s), users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
+    rreview = [(p, s.get(User, p.owner_id)) for p in s.exec(select(Project).where(Project.kind == "Research", Project.research_mode.not_in(["student", "advisor"])).order_by(Project.id)).all()]
+    from .models import Opening
+    onoinst = [(o, s.get(User, o.owner_id)) for o in s.exec(select(Opening).where(Opening.institution_id == None).order_by(Opening.id)).all()]
+    return render(req, "admin.html", user, rreview=rreview, onoinst=onoinst, rnotice=req.query_params.get("rn", ""), vwaiting=vwaiting, trackq=admin_queue(s), users=s.exec(select(User)).all(), staff_email=staff_email, flash_link=req.session.pop("flash_link", None), cflash=req.session.pop("cflash", None),
         profq=profverify.queue(s, req.query_params.get("profs", "open")), profs_all=req.query_params.get("profs") == "all",
         deptq=s.exec(select(User).where(User.dept_status.in_(DEP.REVIEW_STATES)).order_by(User.id)).all(), dflash=req.session.pop("dflash", None),
         perr=req.query_params.get("perr", ""), names_by_id={u.id: u.name or u.handle for u in s.exec(select(User).where(User.is_admin == True)).all()}, programs=s.exec(select(Program).order_by(Program.sort)).all(),
