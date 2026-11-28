@@ -74,7 +74,7 @@ COV_T = {   # explanation lines, in both site languages
     "related": {"en": "Related but not counted: has {have}, the seat asks for {need}", "zh": "相關但不算符合：有 {have}，職位需要 {need}"},
     "complement": {"en": "Adds {x}, which no one on the team has yet", "zh": "帶來團隊目前沒有的技能：{x}"},
     "nomust": {"en": "This seat lists no must-have skills", "zh": "這個職位沒有列出必備技能"},
-    "label": {"en": "{n}/{m} must-have", "zh": "必備 {n}/{m}"},
+    "label": {"en": "{p}% match", "zh": "{p}% 符合"},
 }
 def _say(k, lang, **kw): return COV_T[k]["zh" if lang == "zh" else "en"].format(**kw)
 
@@ -113,9 +113,17 @@ def explain(c, lang="en"):
     return out
 
 
+def pct(c):
+    """Match percentage shown on cards and seats: the share of the seat's must-have skills the person has (0-100).
+    None when the seat lists no must-have skills (no claim)."""
+    return None if not c["must"] else 100 * len(c["must_have"]) // len(c["must"])
+
+
 def label(c, lang="en"):
-    """Short badge text, e.g. "2/3 must-have"; None when the seat lists no must-have skills."""
-    return None if not c["must"] else _say("label", lang, n=len(c["must_have"]), m=len(c["must"]))
+    """Short badge text, e.g. "67% match"; None when the seat lists no must-have skills. The must-have details
+    ("Covers 2 of 3 must-have skills") are shown in the For you explanation instead."""
+    p = pct(c)
+    return None if p is None else _say("label", lang, p=p)
 
 
 def match_pct(user, role, project, owner):

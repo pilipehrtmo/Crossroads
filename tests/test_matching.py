@@ -24,7 +24,7 @@ def test_related_skills_are_not_synonyms():
 def test_coverage_counts_only_must_have_for_the_main_score():
     c = coverage("figma, ui design", seat("figma, ui design, user research"))
     assert c["must_have"] == ["figma", "ui design"] and c["must_missing"] == ["user research"]
-    assert label(c) == "2/3 must-have"
+    assert label(c) == "66% match" and label(c, "zh") == "66% 符合"
 
 
 def test_nice_to_have_never_makes_up_for_a_missing_must_have():

@@ -21,7 +21,7 @@ from .mail import send_mail, email_enabled
 from .security import hash_password, check_password, password_problem, new_token, token_hash, expires_in
 from .scraper import run_scrapers
 from .seed import seed, seed_starter, seed_examples
-from .matching import warm, coverage, explain, label as cov_text
+from .matching import warm, coverage, explain, label as cov_text, pct as cov_pct
 from .cv import parse_cv, CVError, MAX_BYTES
 from . import validate as V
 from .links import CONTACTS, PRO_LINKS, LinkError, clean_contact, clean_handle, clean_link, short
@@ -831,17 +831,19 @@ def board(req: Request, q: str = "", cat: str = "", kind: str = "", user=Depends
         # filtering and sorting happen in the browser (instant, no reload); the page holds every open project
         owner = owners.get(pr.owner_id)
         # no match score on your own project
-        best, reason, cov_label = None, "", None
+        best, reason, cov_label, best_pct, bc = None, "", None, None, None
         if user and user.id != pr.owner_id and user.skills.strip():   # no skills yet: no score (a row of 0% helps nobody)
             covs = [(coverage(user.skills, r), r) for r in roles if not r.advisor or user.is_faculty]
             covs = [(c, r) for c, r in covs if c["rank"] is not None]   # seats with no must-have skills make no claim
             if covs:
                 bc, br = max(covs, key=lambda x: x[0]["rank"]); best = bc["rank"]
-                cov_label = cov_text(bc, lang); reason = f"{br.name}: " + " · ".join(explain(bc, lang))
+                cov_label = cov_text(bc, lang); best_pct = cov_pct(bc); reason = f"{br.name}: " + " · ".join(explain(bc, lang))
         fy, fy_why, other = False, [], ""
         if user and user.id != pr.owner_id and pr.id not in touched:
             fy, fy_why, other = FY.project(me_, pr, [r for r in roles if not r.advisor or user.is_faculty], owner, lang)
-        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, cov_label=cov_label, total=len(allr), days=days, reason=reason, fy=fy, fy_why=fy_why, other=other))
+            if fy and bc is not None:   # the must-have details live in the For you explanation, not on the badge
+                fy_why = fy_why + [f"{br.name}: {w}" if i == 0 else w for i, w in enumerate(explain(bc, lang)[:2])]
+        rows.append(dict(p=pr, roles=roles, owner=owner, score=best, pct=best_pct, cov_label=cov_label, total=len(allr), days=days, reason=reason, fy=fy, fy_why=fy_why, other=other))
     rows.sort(key=lambda r: (not r["fy"], -(r["score"] or 0)))   # "For you" first, then the match score
     soon = {}   # nearest program deadline within 30 days, per project kind
     for prog in s.exec(select(Program).where(Program.active == True)).all():
@@ -1132,7 +1134,7 @@ def project(req: Request, pid: int, user=Depends(me), s: Session = Depends(get_s
         cov = coverage(user.skills, r, team_have) if user and user.skills.strip() and not r.filled and not is_owner and not r.advisor else None
         lang = pick_lang(req)
         out.append(dict(r=r, apps=apps, mine=any(u.id == (user.id if user else 0) for _, u in apps),
-                        cov=cov, cov_label=cov_text(cov, lang) if cov else None, why=explain(cov, lang) if cov else [],
+                        cov=cov, cov_label=cov_text(cov, lang) if cov and cov_pct(cov) else None,   # no "0% match" pill: it helps nobody why=explain(cov, lang) if cov else [],
                         app_cov={a.id: cov_text(coverage(u.skills, r), lang) for a, u in apps if u and not r.advisor and (is_owner or (user and user.is_admin))},
                         inv_pending=len(s.exec(select(Invitation.id).where(Invitation.role_id == r.id, Invitation.status == "pending")).all()) if is_owner else 0))
     from .eligibility import for_project, project_inst, reason_text, team_universities
